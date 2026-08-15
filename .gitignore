@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+admin/node_modules/
+
+# Build archives
+*.zip
+
+# IDE & Editor files
+.vscode/
+.idea/
+.claude/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Logs & temp
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
