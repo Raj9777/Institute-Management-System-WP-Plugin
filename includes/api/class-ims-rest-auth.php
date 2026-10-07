@@ -26,6 +26,12 @@ class IMS_REST_Auth extends IMS_REST_Base {
             ),
         ));
 
+        register_rest_route($this->namespace, '/users/(?P<id>\d+)', array(
+            'methods'             => 'DELETE',
+            'callback'            => array($this, 'delete_plugin_user'),
+            'permission_callback' => array($this, 'check_manage_users_permission_write'),
+        ));
+
         register_rest_route($this->namespace, '/users/(?P<id>\d+)/status', array(
             'methods'             => 'PUT',
             'callback'            => array($this, 'toggle_user_status'),
@@ -136,6 +142,42 @@ class IMS_REST_Auth extends IMS_REST_Base {
         IMS_Audit::log('user_created', $user_id, "Created plugin user {$username} with role {$role}");
 
         return $this->success_response(array('id' => $user_id, 'message' => __('Plugin user created successfully.', 'institute-management-system')));
+    }
+
+    public function delete_plugin_user($request) {
+        $actor_id  = get_current_user_id();
+        $target_id = (int) $request['id'];
+
+        if ($target_id === $actor_id) {
+            return $this->error_response('self_delete_forbidden', __('You cannot delete your own user account.', 'institute-management-system'), 400);
+        }
+
+        $target_user = get_userdata($target_id);
+        if (!$target_user) {
+            return $this->error_response('not_found', __('User not found.', 'institute-management-system'), 404);
+        }
+
+        $target_rank = IMS_Roles::get_user_highest_rank($target_id);
+        $actor_rank  = IMS_Roles::get_user_highest_rank($actor_id);
+
+        if ($actor_rank <= $target_rank && !current_user_can('administrator')) {
+            return $this->error_response('hierarchy_forbidden', __('You cannot delete a user with an equal or higher role rank.', 'institute-management-system'), 403);
+        }
+
+        if (!function_exists('wp_delete_user')) {
+            require_once ABSPATH . 'wp-admin/includes/user.php';
+        }
+
+        $username = $target_user->user_login;
+        $deleted  = wp_delete_user($target_id);
+
+        if (!$deleted) {
+            return $this->error_response('delete_failed', __('Failed to delete user account.', 'institute-management-system'), 500);
+        }
+
+        IMS_Audit::log('user_deleted', $target_id, "Deleted plugin user {$username} (ID #{$target_id})");
+
+        return $this->success_response(array('message' => sprintf(__('User %s has been deleted successfully.', 'institute-management-system'), $username)));
     }
 
     public function toggle_user_status($request) {

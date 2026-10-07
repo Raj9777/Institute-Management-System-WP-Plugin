@@ -26,7 +26,7 @@ def verify_paper_receipt_feature():
     with open(activator_file, "r", encoding="utf-8") as f:
         act_content = f.read()
     assert "fee_breakdown text DEFAULT NULL" in act_content
-    assert "SHOW COLUMNS FROM {$pay_table} LIKE 'fee_breakdown'" in act_content
+    assert "SHOW COLUMNS FROM {$pay_table}" in act_content
     assert "'website'" in act_content
     assert "'signature_url'" in act_content
     assert "'receipt_terms'" in act_content

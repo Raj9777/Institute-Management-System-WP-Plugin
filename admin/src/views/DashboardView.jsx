@@ -3,10 +3,10 @@ import { api } from '../services/api';
 import { useApp } from '../context/AppContext';
 import { AccessDenied } from '../components/AccessDenied';
 import { ErrorState } from '../components/ErrorState';
-import { Users, GraduationCap, IndianRupee, Calendar, ArrowUpRight, Plus, AlertTriangle, Wallet } from 'lucide-react';
+import { Users, GraduationCap, IndianRupee, Calendar, ArrowUpRight, Plus, AlertTriangle, Wallet, Building2, Globe, Phone, Mail, MapPin } from 'lucide-react';
 
 export const DashboardView = () => {
-  const { setCurrentView, showToast, user } = useApp();
+  const { setCurrentView, showToast, user, settings } = useApp();
   const [kpis, setKpis] = useState(null);
   const [loading, setLoading] = useState(true);
   const [permissionDenied, setPermissionDenied] = useState(false);
@@ -49,6 +49,86 @@ export const DashboardView = () => {
 
   return (
     <div>
+      {/* Institute Branding Banner */}
+      <div
+        className="ims-card"
+        style={{
+          marginBottom: '1.5rem',
+          padding: '1.25rem 1.5rem',
+          background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+          border: '1px solid var(--ims-border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '1.25rem',
+          borderRadius: '12px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <div
+            style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '12px',
+              background: '#eff6ff',
+              border: '1px solid var(--ims-border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+              flexShrink: 0,
+            }}
+          >
+            {settings?.logo_url ? (
+              <img
+                src={settings.logo_url}
+                alt={settings?.institute_name || 'Logo'}
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              />
+            ) : (
+              <Building2 size={32} style={{ color: 'var(--ims-primary)' }} />
+            )}
+          </div>
+          <div>
+            <h2 style={{ margin: '0 0 4px 0', fontSize: '1.35rem', fontWeight: 800, color: 'var(--ims-text-main)' }}>
+              {settings?.institute_name || 'Institute Management System'}
+            </h2>
+            <div style={{ fontSize: '0.85rem', color: 'var(--ims-text-muted)', fontWeight: 500 }}>
+              {settings?.tagline || 'Excellence in Education'}
+            </div>
+            {settings?.gstin && (
+              <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600, marginTop: '3px' }}>
+                GSTIN: {settings.gstin}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', fontSize: '0.82rem', color: 'var(--ims-text-muted)' }}>
+          {settings?.phone && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <Phone size={14} style={{ color: 'var(--ims-primary)' }} />
+              <span>{settings.phone}</span>
+            </div>
+          )}
+          {settings?.website && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <Globe size={14} style={{ color: 'var(--ims-primary)' }} />
+              <a href={settings.website.startsWith('http') ? settings.website : `https://${settings.website}`} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+                {settings.website.replace(/^https?:\/\//, '')}
+              </a>
+            </div>
+          )}
+          {settings?.address && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <MapPin size={14} style={{ color: 'var(--ims-primary)' }} />
+              <span>{settings.address}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* KPI Cards */}
       <div className="ims-grid-4" style={{ marginBottom: '1.5rem' }}>
         <div className="ims-kpi-card">

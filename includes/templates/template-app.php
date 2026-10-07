@@ -201,18 +201,24 @@ if ($is_logged_in) {
     <div class="ims-auth-wrapper">
         <div class="ims-auth-card">
             <div class="ims-auth-header">
-                <div class="ims-auth-icon">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 21h18"/>
-                        <path d="M3 7v14"/>
-                        <path d="M21 7v14"/>
-                        <path d="M6 21V11"/>
-                        <path d="M10 21V11"/>
-                        <path d="M14 21V11"/>
-                        <path d="M18 21V11"/>
-                        <polygon points="12 3 2 7 22 7 12 3"/>
-                    </svg>
-                </div>
+                <?php if (!empty($settings['logo_url'])) : ?>
+                    <div style="margin-bottom: 16px; text-align: center;">
+                        <img src="<?php echo esc_url($settings['logo_url']); ?>" alt="<?php echo esc_attr($inst_name); ?>" style="max-height: 75px; max-width: 240px; object-fit: contain; border-radius: 6px;">
+                    </div>
+                <?php else : ?>
+                    <div class="ims-auth-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 21h18"/>
+                            <path d="M3 7v14"/>
+                            <path d="M21 7v14"/>
+                            <path d="M6 21V11"/>
+                            <path d="M10 21V11"/>
+                            <path d="M14 21V11"/>
+                            <path d="M18 21V11"/>
+                            <polygon points="12 3 2 7 22 7 12 3"/>
+                        </svg>
+                    </div>
+                <?php endif; ?>
                 <h1 class="ims-auth-title"><?php echo esc_html($inst_name); ?></h1>
                 <p class="ims-auth-subtitle"><?php echo !empty($inst_tagline) ? esc_html($inst_tagline) : __('Staff Portal Login', 'institute-management-system'); ?></p>
             </div>
@@ -299,6 +305,7 @@ if ($is_logged_in) {
             'pluginUrl'        => IMS_PLUGIN_URL,
             'appUrl'           => IMS_Frontend::get_app_url(),
             'logoutUrl'        => IMS_Frontend::get_logout_url(),
+            'settings'         => $settings,
             'currentUser'      => array(
                 'id'             => get_current_user_id(),
                 'display_name'   => $user ? $user->display_name : '',

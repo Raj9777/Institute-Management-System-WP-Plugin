@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { AccessDenied } from '../components/AccessDenied';
 import { ErrorState } from '../components/ErrorState';
 import { PhotoUpload } from '../components/PhotoUpload';
-import { Building2, Users, Save, Plus, UserX, UserCheck, Shield, FileText, Download, Database } from 'lucide-react';
+import { Building2, Users, Save, Plus, UserX, UserCheck, Shield, FileText, Download, Database, Trash2 } from 'lucide-react';
 
 export const SettingsView = () => {
   const { showToast, settings, setSettings, user } = useApp();
@@ -149,6 +149,19 @@ export const SettingsView = () => {
 
       if (!res.ok) throw new Error(res.error?.message || 'Action failed');
       showToast(res.data.message);
+      loadUsers();
+    } catch (err) {
+      showToast(err.message, 'danger');
+    }
+  };
+
+  const handleDeleteUser = async (targetUser) => {
+    if (!window.confirm(`Are you sure you want to permanently delete user "${targetUser.display_name || targetUser.username}"? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      await api.deleteUser(targetUser.id);
+      showToast(`User "${targetUser.display_name || targetUser.username}" deleted successfully!`);
       loadUsers();
     } catch (err) {
       showToast(err.message, 'danger');
@@ -507,12 +520,21 @@ export const SettingsView = () => {
                             <Shield size={12} /> Overrides
                           </button>
                           <button
-                            className={`ims-btn ims-btn-sm ${u.is_disabled ? 'ims-btn-primary' : 'ims-btn-danger'}`}
+                            className={`ims-btn ims-btn-sm ${u.is_disabled ? 'ims-btn-primary' : 'ims-btn-secondary'}`}
                             onClick={() => handleToggleUserStatus(u.id, u.is_disabled)}
                             disabled={u.id === user?.id}
+                            title={u.is_disabled ? 'Enable Account' : 'Disable Account'}
                           >
                             {u.is_disabled ? <UserCheck size={12} /> : <UserX size={12} />}
                             {u.is_disabled ? 'Enable' : 'Disable'}
+                          </button>
+                          <button
+                            className="ims-btn ims-btn-danger ims-btn-sm"
+                            onClick={() => handleDeleteUser(u)}
+                            disabled={u.id === user?.id}
+                            title="Delete User Permanently"
+                          >
+                            <Trash2 size={12} /> Delete
                           </button>
                         </div>
                       </td>
@@ -607,29 +629,212 @@ export const SettingsView = () => {
       {/* Override Modal */}
       {showOverrideModal && selectedUserForOverride && (
         <div className="ims-modal-overlay">
-          <div className="ims-modal-content">
-            <h3>Capability Overrides for {selectedUserForOverride.display_name}</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', margin: '1.25rem 0' }}>
+          <div className="ims-modal-content" style={{ maxWidth: '640px', maxHeight: '88vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', borderBottom: '1px solid var(--ims-border)', paddingBottom: '0.75rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--ims-text-main)' }}>
+                  Permission Overrides: {selectedUserForOverride.display_name}
+                </h3>
+                <div style={{ fontSize: '0.8rem', color: 'var(--ims-text-muted)', marginTop: '2px' }}>
+                  Role: <strong style={{ textTransform: 'capitalize' }}>{selectedUserForOverride.roles?.[0]?.replace('ims_', '').replace('_', ' ') || 'Staff'}</strong> ({selectedUserForOverride.username})
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.35rem' }}>
+                <button
+                  type="button"
+                  className="ims-btn ims-btn-secondary ims-btn-sm"
+                  style={{ fontSize: '0.72rem', padding: '3px 8px' }}
+                  onClick={() => {
+                    const allTrue = {};
+                    [
+                      'ims_manage_students', 'ims_manage_academic', 'ims_view_attendance',
+                      'ims_mark_attendance', 'ims_manage_finances', 'ims_view_payroll',
+                      'ims_manage_payroll', 'ims_view_staff_sensitive', 'ims_view_reports',
+                      'ims_manage_settings', 'ims_manage_users'
+                    ].forEach(k => { allTrue[k] = true; });
+                    setOverrideCaps(allTrue);
+                  }}
+                >
+                  Grant All
+                </button>
+                <button
+                  type="button"
+                  className="ims-btn ims-btn-secondary ims-btn-sm"
+                  style={{ fontSize: '0.72rem', padding: '3px 8px' }}
+                  onClick={() => {
+                    const allFalse = {};
+                    [
+                      'ims_manage_students', 'ims_manage_academic', 'ims_view_attendance',
+                      'ims_mark_attendance', 'ims_manage_finances', 'ims_view_payroll',
+                      'ims_manage_payroll', 'ims_view_staff_sensitive', 'ims_view_reports',
+                      'ims_manage_settings', 'ims_manage_users'
+                    ].forEach(k => { allFalse[k] = false; });
+                    setOverrideCaps(allFalse);
+                  }}
+                >
+                  Revoke All
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', margin: '1rem 0' }}>
               {[
-                { key: 'ims_manage_finances', label: 'Manage Fees, Invoices & Expenses' },
-                { key: 'ims_manage_students', label: 'Manage Student Directory & Admission' },
-                { key: 'ims_mark_attendance', label: 'Mark Student & Staff Attendance' },
-                { key: 'ims_view_payroll', label: 'View Staff Base Salaries & Payroll' },
-                { key: 'ims_manage_academic', label: 'Manage Courses & Batches' },
-              ].map((cap) => (
-                <label key={cap.key} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={!!overrideCaps[cap.key]}
-                    onChange={(e) => setOverrideCaps({ ...overrideCaps, [cap.key]: e.target.checked })}
-                  />
-                  <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{cap.label}</span>
-                </label>
+                {
+                  section: '🎓 Student Management & Admissions',
+                  color: '#2563eb',
+                  items: [
+                    {
+                      key: 'ims_manage_students',
+                      label: 'Student Directory & Admissions',
+                      subLabel: 'Admissions, enquiries, student profile editing, and ledger viewing.',
+                    },
+                  ],
+                },
+                {
+                  section: '📚 Academic Management',
+                  color: '#059669',
+                  items: [
+                    {
+                      key: 'ims_manage_academic',
+                      label: 'Courses & Batch Schedules',
+                      subLabel: 'Create and update courses, batch timings, and faculty assignments.',
+                    },
+                  ],
+                },
+                {
+                  section: '📅 Attendance Management',
+                  color: '#d97706',
+                  items: [
+                    {
+                      key: 'ims_view_attendance',
+                      label: 'Sub-section: View Attendance Register',
+                      subLabel: 'Inspect daily attendance logs, attendance rates, and monthly registers.',
+                    },
+                    {
+                      key: 'ims_mark_attendance',
+                      label: 'Sub-section: Take / Mark Attendance',
+                      subLabel: 'Perform daily roll-calls for student batches and staff members.',
+                    },
+                  ],
+                },
+                {
+                  section: '💳 Finances & Accounts',
+                  color: '#7c3aed',
+                  items: [
+                    {
+                      key: 'ims_manage_finances',
+                      label: 'Fees, Invoices & Expenses',
+                      subLabel: 'Collect fee receipts, generate GST invoices, and log vendor expenses.',
+                    },
+                  ],
+                },
+                {
+                  section: '👥 Staff & Payroll Management',
+                  color: '#0284c7',
+                  items: [
+                    {
+                      key: 'ims_view_payroll',
+                      label: 'Sub-section: View Staff & Payroll Runs',
+                      subLabel: 'Access staff directory and inspect monthly automated payroll runs.',
+                    },
+                    {
+                      key: 'ims_manage_payroll',
+                      label: 'Sub-section: Manage & Finalize Payroll',
+                      subLabel: 'Add salary bonuses/deductions and finalize monthly payroll disbursements.',
+                    },
+                    {
+                      key: 'ims_view_staff_sensitive',
+                      label: 'Sub-section: Sensitive Bank Details',
+                      subLabel: 'Reveal masked AES-256 encrypted staff bank accounts & IFSC (audited).',
+                    },
+                  ],
+                },
+                {
+                  section: '📊 Analytics & Reports',
+                  color: '#ea580c',
+                  items: [
+                    {
+                      key: 'ims_view_reports',
+                      label: 'Analytics & Full Backup Export',
+                      subLabel: 'Access institute financial/academic reports and download JSON database backup.',
+                    },
+                  ],
+                },
+                {
+                  section: '⚙️ System Administration',
+                  color: '#475569',
+                  items: [
+                    {
+                      key: 'ims_manage_settings',
+                      label: 'Institute Branding & Settings',
+                      subLabel: 'Manage institute logo, GST rates, invoice sequences, and receipt terms.',
+                    },
+                    {
+                      key: 'ims_manage_users',
+                      label: 'User Management & Permissions',
+                      subLabel: 'Create staff accounts, toggle login access, and set capability overrides.',
+                    },
+                  ],
+                },
+              ].map((grp) => (
+                <div
+                  key={grp.section}
+                  style={{
+                    border: '1px solid var(--ims-border)',
+                    borderRadius: '8px',
+                    padding: '0.85rem 1rem',
+                    background: '#f8fafc',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: grp.color, marginBottom: '0.65rem' }}>
+                    {grp.section}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                    {grp.items.map((cap) => {
+                      const isChecked = Boolean(overrideCaps[cap.key]);
+                      return (
+                        <label
+                          key={cap.key}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '0.65rem',
+                            cursor: 'pointer',
+                            background: '#ffffff',
+                            padding: '8px 12px',
+                            borderRadius: '6px',
+                            border: isChecked ? '1px solid var(--ims-primary)' : '1px solid var(--ims-border)',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            style={{ marginTop: '3px' }}
+                            checked={isChecked}
+                            onChange={(e) => setOverrideCaps({ ...overrideCaps, [cap.key]: e.target.checked })}
+                          />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--ims-text-main)' }}>
+                              {cap.label}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--ims-text-muted)', marginTop: '1px' }}>
+                              {cap.subLabel}
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               ))}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-              <button type="button" className="ims-btn ims-btn-secondary" onClick={() => setShowOverrideModal(false)}>Cancel</button>
-              <button type="button" className="ims-btn ims-btn-primary" onClick={handleSaveOverrides}>Save Overrides</button>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid var(--ims-border)', paddingTop: '0.75rem', marginTop: '1rem' }}>
+              <button type="button" className="ims-btn ims-btn-secondary" onClick={() => setShowOverrideModal(false)}>
+                Cancel
+              </button>
+              <button type="button" className="ims-btn ims-btn-primary" onClick={handleSaveOverrides}>
+                Save Capability Overrides
+              </button>
             </div>
           </div>
         </div>

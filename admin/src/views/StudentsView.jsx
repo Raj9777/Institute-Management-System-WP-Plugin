@@ -326,10 +326,16 @@ export const StudentsView = () => {
     setLedgerStudent(student);
     setLedgerTab('ledger');
     try {
-      const docs = await api.getDocuments({ student_id: student.id });
+      const [fullProfile, docs] = await Promise.all([
+        api.getStudent(student.id).catch(() => null),
+        api.getDocuments({ student_id: student.id }).catch(() => [])
+      ]);
+      if (fullProfile) {
+        setLedgerStudent(fullProfile);
+      }
       setStudentDocs(docs || []);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to load student ledger:', err);
     }
   };
 

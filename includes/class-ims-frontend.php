@@ -154,13 +154,15 @@ class IMS_Frontend {
      * Handle login submitted from the front-end login form
      */
     public function handle_frontend_login() {
-        if (!isset($_POST['ims_frontend_login_nonce']) || !wp_verify_nonce($_POST['ims_frontend_login_nonce'], 'ims_frontend_login_action')) {
-            wp_die(__('Security check failed. Please refresh and try again.', 'institute-management-system'), __('Error', 'institute-management-system'), array('response' => 403));
-        }
-
         $username = isset($_POST['log']) ? sanitize_text_field(wp_unslash($_POST['log'])) : '';
         $password = isset($_POST['pwd']) ? $_POST['pwd'] : ''; // do not sanitize password
         $remember = !empty($_POST['rememberme']);
+
+        if (empty($username) || empty($password)) {
+            $app_url = add_query_arg('login_error', 'invalid_credentials', self::get_app_url());
+            wp_safe_redirect($app_url);
+            exit;
+        }
 
         $creds = array(
             'user_login'    => $username,

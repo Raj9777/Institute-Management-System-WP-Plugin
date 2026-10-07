@@ -34,22 +34,47 @@ class IMS_REST_Attendance extends IMS_REST_Base {
         $table = "{$wpdb->prefix}ims_attendance";
 
         $date        = sanitize_text_field($request->get_param('date'));
+        $start_date  = sanitize_text_field($request->get_param('start_date'));
+        $end_date    = sanitize_text_field($request->get_param('end_date'));
+        $month       = intval($request->get_param('month'));
+        $year        = intval($request->get_param('year'));
         $entity_type = sanitize_text_field($request->get_param('entity_type')); // 'student' or 'staff'
         $batch_id    = intval($request->get_param('batch_id'));
+        $entity_id   = intval($request->get_param('entity_id'));
 
-        if (empty($date) || empty($entity_type)) {
-            return $this->error_response('missing_params', __('Date and Entity Type are required.', 'institute-management-system'));
+        if (empty($entity_type)) {
+            return $this->error_response('missing_params', __('Entity Type is required.', 'institute-management-system'));
         }
 
-        $where = "WHERE attendance_date = %s AND entity_type = %s AND deleted_at IS NULL";
-        $params = array($date, $entity_type);
+        $where = "WHERE entity_type = %s AND deleted_at IS NULL";
+        $params = array($entity_type);
+
+        if (!empty($date)) {
+            $where .= " AND attendance_date = %s";
+            $params[] = $date;
+        } elseif (!empty($start_date) && !empty($end_date)) {
+            $where .= " AND attendance_date >= %s AND attendance_date <= %s";
+            $params[] = $start_date;
+            $params[] = $end_date;
+        } elseif (!empty($month) && !empty($year)) {
+            $start = sprintf('%04d-%02d-01', $year, $month);
+            $end   = sprintf('%04d-%02d-%02d', $year, $month, cal_days_in_month(CAL_GREGORIAN, $month, $year));
+            $where .= " AND attendance_date >= %s AND attendance_date <= %s";
+            $params[] = $start;
+            $params[] = $end;
+        }
 
         if (!empty($batch_id)) {
             $where .= " AND batch_id = %d";
             $params[] = $batch_id;
         }
 
-        $sql = $wpdb->prepare("SELECT * FROM {$table} {$where}", $params);
+        if (!empty($entity_id)) {
+            $where .= " AND entity_id = %d";
+            $params[] = $entity_id;
+        }
+
+        $sql = $wpdb->prepare("SELECT * FROM {$table} {$where} ORDER BY attendance_date ASC, id ASC", $params);
         $results = $wpdb->get_results($sql);
 
         return $this->success_response($results);

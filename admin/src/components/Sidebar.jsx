@@ -38,15 +38,23 @@ export const Sidebar = () => {
   return (
     <aside className="ims-sidebar">
       <div className="ims-sidebar-header">
-        <div className="ims-brand-icon">
-          <Building2 size={24} />
+        <div className="ims-brand-icon" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {settings?.logo_url ? (
+            <img
+              src={settings.logo_url}
+              alt="Logo"
+              style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '8px' }}
+            />
+          ) : (
+            <Building2 size={24} />
+          )}
         </div>
         <div>
           <div className="ims-brand-title">
             {settings?.institute_name || 'IMS Portal'}
           </div>
           <div style={{ fontSize: '0.72rem', color: 'var(--ims-text-muted)' }}>
-            Institute Management
+            {settings?.tagline || 'Institute Management'}
           </div>
         </div>
       </div>

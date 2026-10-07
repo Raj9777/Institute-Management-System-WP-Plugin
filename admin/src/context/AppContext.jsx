@@ -6,7 +6,7 @@ const AppContext = createContext();
 export const AppProvider = ({ children }) => {
   const [currentView, setCurrentView] = useState('dashboard');
   const [user, setUser] = useState(window.imsData?.currentUser || null);
-  const [settings, setSettings] = useState(null);
+  const [settings, setSettings] = useState(window.imsData?.settings || null);
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
 

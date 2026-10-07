@@ -60,13 +60,99 @@ class IMS_Roles {
         $user = new WP_User($user_id);
         if ($user->exists()) {
             foreach ($overrides as $cap => $granted) {
-                if ($granted) {
-                    $user->add_cap($cap);
+                if ($granted === true || $granted === 1 || $granted === '1') {
+                    $user->add_cap($cap, true);
+                } elseif ($granted === false || $granted === 0 || $granted === '0') {
+                    $user->add_cap($cap, false);
                 } else {
                     $user->remove_cap($cap);
                 }
             }
         }
+    }
+
+    public static function get_capability_definitions() {
+        return array(
+            'students' => array(
+                'section' => __('Student Management & Admissions', 'institute-management-system'),
+                'capabilities' => array(
+                    'ims_manage_students' => array(
+                        'label' => __('Manage Student Admissions & Enquiries', 'institute-management-system'),
+                        'description' => __('Enquiry capture, student admissions, profile editing, and ledger viewing.', 'institute-management-system'),
+                    ),
+                ),
+            ),
+            'academic' => array(
+                'section' => __('Academic Courses & Batches', 'institute-management-system'),
+                'capabilities' => array(
+                    'ims_manage_academic' => array(
+                        'label' => __('Manage Courses & Batches', 'institute-management-system'),
+                        'description' => __('Create and edit courses, batch schedules, timings, and teacher assignments.', 'institute-management-system'),
+                    ),
+                ),
+            ),
+            'attendance' => array(
+                'section' => __('Attendance Management', 'institute-management-system'),
+                'capabilities' => array(
+                    'ims_view_attendance' => array(
+                        'label' => __('View Attendance Register', 'institute-management-system'),
+                        'description' => __('Sub-section: Inspect daily attendance logs and monthly batch attendance registers.', 'institute-management-system'),
+                    ),
+                    'ims_mark_attendance' => array(
+                        'label' => __('Take / Mark Attendance', 'institute-management-system'),
+                        'description' => __('Sub-section: Daily roll calls for students in batches and staff check-ins.', 'institute-management-system'),
+                    ),
+                ),
+            ),
+            'finances' => array(
+                'section' => __('Finances, Invoicing & Receipts', 'institute-management-system'),
+                'capabilities' => array(
+                    'ims_manage_finances' => array(
+                        'label' => __('Manage Finances, Invoices & Expenses', 'institute-management-system'),
+                        'description' => __('Issue GST invoices, collect fee payments, print money receipts, and manage vendor expenses.', 'institute-management-system'),
+                    ),
+                ),
+            ),
+            'payroll' => array(
+                'section' => __('Staff & Payroll Management', 'institute-management-system'),
+                'capabilities' => array(
+                    'ims_view_payroll' => array(
+                        'label' => __('View Staff Directory & Payroll Runs', 'institute-management-system'),
+                        'description' => __('Sub-section: Access staff directory and view monthly payroll calculations.', 'institute-management-system'),
+                    ),
+                    'ims_manage_payroll' => array(
+                        'label' => __('Manage & Finalize Monthly Payroll', 'institute-management-system'),
+                        'description' => __('Sub-section: Add bonus/deduction adjustments and finalize salary payouts.', 'institute-management-system'),
+                    ),
+                    'ims_view_staff_sensitive' => array(
+                        'label' => __('View Staff Bank & Sensitive Details', 'institute-management-system'),
+                        'description' => __('Sub-section: Access encrypted bank accounts and IFSC details (audited).', 'institute-management-system'),
+                    ),
+                ),
+            ),
+            'reports' => array(
+                'section' => __('Analytics & Reports', 'institute-management-system'),
+                'capabilities' => array(
+                    'ims_view_reports' => array(
+                        'label' => __('View Institute Reports & Exports', 'institute-management-system'),
+                        'description' => __('Generate and export revenue summaries, fee collection logs, and full JSON data backup.', 'institute-management-system'),
+                    ),
+                ),
+            ),
+            'settings' => array(
+                'section' => __('System Administration & Settings', 'institute-management-system'),
+                'capabilities' => array(
+                    'ims_manage_settings' => array(
+                        'label' => __('Manage Institute Settings', 'institute-management-system'),
+                        'description' => __('Configure logo, branding, GSTIN, receipt terms, and sequence prefixes.', 'institute-management-system'),
+                    ),
+                    'ims_manage_users' => array(
+                        'label' => __('Manage Plugin Users & Permissions', 'institute-management-system'),
+                        'description' => __('Create staff logins, toggle account statuses, and set section/sub-section capability overrides.', 'institute-management-system'),
+                    ),
+                ),
+            ),
+        );
     }
 
     public static function get_capabilities_map() {

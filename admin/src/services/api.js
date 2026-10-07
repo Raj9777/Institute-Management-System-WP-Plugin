@@ -48,6 +48,7 @@ export const api = {
   getMe: () => apiFetch('/auth/me'),
   getUsers: () => apiFetch('/users'),
   createUser: (data) => apiFetch('/users', { method: 'POST', body: JSON.stringify(data) }),
+  deleteUser: (id) => apiFetch(`/users/${id}`, { method: 'DELETE' }),
 
   // Settings
   getSettings: () => apiFetch('/settings'),

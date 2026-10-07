@@ -847,8 +847,8 @@ export const FinancesView = () => {
                     <tr key={p.id} style={p.is_reversal ? { background: '#fff1f2' } : {}}>
                       <td style={{ fontWeight: 700, color: 'var(--ims-primary)' }}>{p.receipt_no}</td>
                       <td>{p.student_name}</td>
-                      <td style={{ fontWeight: 700, color: p.is_reversal ? 'var(--ims-danger)' : 'var(--ims-success)' }}>
-                        {p.is_reversal ? '-' : '+'}₹{Math.abs(parseFloat(p.amount)).toLocaleString('en-IN')}
+                      <td style={{ fontWeight: 700, color: p.is_reversal ? '#dc2626' : '#059669' }}>
+                        ₹{Math.abs(parseFloat(p.amount)).toLocaleString('en-IN')}
                       </td>
                       <td style={{ textTransform: 'uppercase' }}>{p.payment_mode}</td>
                       <td>{p.reference_no || 'N/A'}</td>

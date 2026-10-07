@@ -174,6 +174,7 @@ class Institute_Management_System {
                 'pluginUrl'        => IMS_PLUGIN_URL,
                 'appUrl'           => IMS_Frontend::get_app_url(),
                 'logoutUrl'        => IMS_Frontend::get_logout_url(),
+                'settings'         => get_option('ims_institute_settings', array()),
                 'currentUser'      => array(
                     'id'             => get_current_user_id(),
                     'display_name'   => wp_get_current_user()->display_name,

@@ -72,6 +72,15 @@ class IMS_DB extends IMS_DB_Base {
         }
 
         $year = date('Y');
+        $month = date('m');
+
+        if ($key === 'roll_no') {
+            if (!empty($prefix)) {
+                return sprintf('%s-%s%s-%04d', $prefix, $year, $month, $next_val);
+            }
+            return sprintf('%s%s-%04d', $year, $month, $next_val);
+        }
+
         return sprintf('%s-%s-%04d', $prefix, $year, $next_val);
     }
 
