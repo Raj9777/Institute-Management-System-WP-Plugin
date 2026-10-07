@@ -119,16 +119,19 @@ class IMS_REST_Finances extends IMS_REST_Base {
         $where = "WHERE i.deleted_at IS NULL";
         $params = array();
 
+        $courses_table  = "{$wpdb->prefix}ims_courses";
+
         if (!empty($student_id)) {
             $where .= " AND i.student_id = %d";
             $params[] = $student_id;
         }
 
         $sql = "
-SELECT i.*, CONCAT(s.first_name, ' ', s.last_name) AS student_name, s.roll_no,
-       (SELECT COALESCE(SUM(p.amount), 0) FROM {$wpdb->prefix}ims_payments p WHERE p.invoice_id = i.id AND p.is_reversal = 0 AND p.deleted_at IS NULL) AS paid_amount
+SELECT i.*, CONCAT(s.first_name, ' ', s.last_name) AS student_name, s.roll_no, c.name AS course_name,
+       (SELECT COALESCE(SUM(p.amount), 0) FROM {$wpdb->prefix}ims_payments p WHERE p.invoice_id = i.id AND p.deleted_at IS NULL) AS paid_amount
 FROM {$invoices_table} i
 LEFT JOIN {$students_table} s ON i.student_id = s.id
+LEFT JOIN {$courses_table} c ON s.course_id = c.id
 {$where}
 ORDER BY i.created_at DESC
         ";

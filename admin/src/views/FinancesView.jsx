@@ -685,6 +685,19 @@ export const FinancesView = () => {
       const res = await api.createInvoice(invoiceForm);
       showToast(`GST Invoice ${res.invoice_no} created!`);
       setShowInvoiceModal(false);
+      const selStudent = students.find((s) => s.id == invoiceForm.student_id);
+      setPrintInvoiceDoc({
+        id: res.id,
+        invoice_no: res.invoice_no,
+        student_id: invoiceForm.student_id,
+        student_name: selStudent ? `${selStudent.first_name} ${selStudent.last_name}` : 'Student',
+        roll_no: selStudent ? selStudent.roll_no : '',
+        course_name: selStudent ? selStudent.course_name : '',
+        taxable_amount: invoiceForm.taxable_amount,
+        total_amount: res.total_amount,
+        invoice_date: invoiceForm.invoice_date,
+        status: 'unpaid',
+      });
       loadData();
     } catch (err) {
       showToast(err.message, 'danger');
@@ -808,8 +821,8 @@ export const FinancesView = () => {
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.35rem' }}>
-                          <button className="ims-btn ims-btn-secondary ims-btn-sm" onClick={() => setPrintInvoiceDoc(inv)} title="Print PDF">
-                            <Printer size={14} /> Print PDF
+                          <button className="ims-btn ims-btn-secondary ims-btn-sm" onClick={() => setPrintInvoiceDoc(inv)} title="Print GST Invoice">
+                            <Printer size={14} /> Print Invoice
                           </button>
                           <button className="ims-btn ims-btn-danger ims-btn-sm" onClick={() => handleDeleteInvoice(inv)} title="Delete Invoice">
                             <Trash2 size={14} />
@@ -860,8 +873,29 @@ export const FinancesView = () => {
                             title="Print Money Receipt"
                             onClick={() => handleOpenPrintReceipt(p.id)}
                           >
-                            <Printer size={14} /> Print
+                            <Printer size={14} /> Receipt
                           </button>
+                          {p.invoice_id > 0 && (
+                            <button
+                              className="ims-btn ims-btn-secondary ims-btn-sm"
+                              title="Print GST Invoice"
+                              onClick={async () => {
+                                try {
+                                  const invList = await api.getInvoices();
+                                  const match = invList.find((i) => i.id == p.invoice_id);
+                                  if (match) {
+                                    setPrintInvoiceDoc(match);
+                                  } else {
+                                    showToast('Invoice record not found', 'warning');
+                                  }
+                                } catch (err) {
+                                  showToast(err.message, 'danger');
+                                }
+                              }}
+                            >
+                              <FileText size={14} /> Invoice
+                            </button>
+                          )}
                           {p.is_reversal ? (
                             <span className="ims-badge ims-badge-danger">Reversal</span>
                           ) : (
