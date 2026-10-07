@@ -17,15 +17,26 @@ const buildQuery = (params = {}) => {
 
 export const apiFetch = async (endpoint, options = {}) => {
   const { root, nonce } = getApiConfig();
-  const url = `${root}ims/v1${endpoint}`;
+  const method = (options.method || 'GET').toUpperCase();
+  
+  // Guarantee unique URL for GET requests to bypass any browser or intermediary caching
+  let url = `${root}ims/v1${endpoint}`;
+  if (method === 'GET') {
+    const sep = url.includes('?') ? '&' : '?';
+    url = `${url}${sep}_t=${Date.now()}`;
+  }
 
   const headers = {
     'Content-Type': 'application/json',
     'X-WP-Nonce': nonce,
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
     ...options.headers,
   };
 
   const response = await fetch(url, {
+    cache: 'no-store',
     ...options,
     headers,
   });
@@ -59,9 +70,15 @@ export const api = {
     const { root, nonce } = getApiConfig();
     const formData = new FormData();
     formData.append('file', file);
-    const response = await fetch(`${root}ims/v1/upload`, {
+    const response = await fetch(`${root}ims/v1/upload?_t=${Date.now()}`, {
       method: 'POST',
-      headers: { 'X-WP-Nonce': nonce },
+      cache: 'no-store',
+      headers: {
+        'X-WP-Nonce': nonce,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
       body: formData,
     });
     const json = await response.json();

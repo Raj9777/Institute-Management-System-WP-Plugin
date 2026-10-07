@@ -234,7 +234,7 @@ class Institute_Management_System {
                     $code = 'PERMISSION_DENIED';
                     $status = 403;
                 }
-                return new WP_REST_Response(array(
+                $res = new WP_REST_Response(array(
                     'ok'    => false,
                     'data'  => null,
                     'error' => array(
@@ -242,10 +242,18 @@ class Institute_Management_System {
                         'message' => $message,
                     ),
                 ), $status);
+                $res->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+                $res->header('Pragma', 'no-cache');
+                $res->header('Expires', '0');
+                return $res;
             }
         } elseif ($response instanceof WP_HTTP_Response || $response instanceof WP_REST_Response) {
             $route = $request->get_route();
             if (strpos($route, '/ims/v1') === 0) {
+                $response->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+                $response->header('Pragma', 'no-cache');
+                $response->header('Expires', '0');
+
                 if (method_exists($response, 'is_error') && $response->is_error()) {
                     $error_data = $response->get_data();
                     $status = $response->get_status();
@@ -256,7 +264,7 @@ class Institute_Management_System {
                         $code = 'PERMISSION_DENIED';
                     }
 
-                    return new WP_REST_Response(array(
+                    $err_res = new WP_REST_Response(array(
                         'ok'    => false,
                         'data'  => null,
                         'error' => array(
@@ -264,6 +272,10 @@ class Institute_Management_System {
                             'message' => $message,
                         ),
                     ), $status);
+                    $err_res->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+                    $err_res->header('Pragma', 'no-cache');
+                    $err_res->header('Expires', '0');
+                    return $err_res;
                 }
             }
         }

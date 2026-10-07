@@ -11,15 +11,19 @@ abstract class IMS_REST_Base {
     abstract public function register_routes();
 
     protected function success_response($data = null, $status = 200) {
-        return new WP_REST_Response(array(
+        $response = new WP_REST_Response(array(
             'ok'    => true,
             'data'  => $data,
             'error' => null,
         ), $status);
+        $response->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        $response->header('Pragma', 'no-cache');
+        $response->header('Expires', '0');
+        return $response;
     }
 
     protected function error_response($code, $message, $status = 400) {
-        return new WP_REST_Response(array(
+        $response = new WP_REST_Response(array(
             'ok'    => false,
             'data'  => null,
             'error' => array(
@@ -27,6 +31,10 @@ abstract class IMS_REST_Base {
                 'message' => $message,
             ),
         ), $status);
+        $response->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        $response->header('Pragma', 'no-cache');
+        $response->header('Expires', '0');
+        return $response;
     }
 
     protected function check_capability($capability, $check_write_license = false) {
