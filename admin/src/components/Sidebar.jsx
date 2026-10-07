@@ -89,7 +89,7 @@ export const Sidebar = () => {
       </nav>
 
       <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--ims-border)', fontSize: '0.75rem', color: 'var(--ims-text-muted)' }}>
-        IMS Plugin v1.0.0<br />
+        IMS Plugin v1.1.0<br />
         Currency: INR (₹)
       </div>
     </aside>

@@ -3,7 +3,7 @@ import zipfile
 
 def build_zip():
     plugin_slug = 'institute-management-system'
-    version = '1.0.0'
+    version = '1.1.0'
     zip_filename = f'{plugin_slug}-v{version}.zip'
     fallback_filename = f'{plugin_slug}.zip'
 
