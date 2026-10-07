@@ -252,12 +252,31 @@ export const StudentsView = () => {
     }
   };
 
+  // Helper for installment due date according to institute rule:
+  // <= 20th of month: 1st installment due 10th of next month
+  // > 20th of month: 1st installment due 10th of next-next month
+  const calculateInstallmentDueDate = (dateStr, installmentIdx = 0) => {
+    const d = dateStr ? new Date(dateStr) : new Date();
+    const day = d.getDate();
+    const year = d.getFullYear();
+    const month = d.getMonth(); // 0-indexed
+    const baseOffset = day <= 20 ? 1 : 2;
+    const targetDate = new Date(year, month + baseOffset + installmentIdx, 10);
+    const yyyy = targetDate.getFullYear();
+    const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(targetDate.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   const openAgreementModal = (student) => {
     setAgreementStudent(student);
+    const admDate = student.created_at ? student.created_at.split('T')[0] : new Date().toISOString().split('T')[0];
+    const net = parseFloat(student.net_fee || 0);
+
     setAgreementForm({
-      agreement_date: new Date().toISOString().split('T')[0],
+      agreement_date: admDate,
       prev_invoice_no: '',
-      inv_val: parseFloat(student.net_fee || 0),
+      inv_val: net,
       exam_fee: 0,
       caution_deposit: 0,
       first_receipt_no: '',
@@ -266,9 +285,9 @@ export const StudentsView = () => {
       second_receipt_no: '',
       second_receipt_date: '',
       instalments: [
-        { name: '1st Instalment', due_date: '', amount: parseFloat(student.net_fee || 0), paid_date: '' },
-        { name: '2nd Instalment', due_date: '', amount: 0, paid_date: '' },
-        { name: '3rd Instalment', due_date: '', amount: 0, paid_date: '' },
+        { name: '1st Instalment', due_date: calculateInstallmentDueDate(admDate, 0), amount: net, paid_date: '' },
+        { name: '2nd Instalment', due_date: calculateInstallmentDueDate(admDate, 1), amount: 0, paid_date: '' },
+        { name: '3rd Instalment', due_date: calculateInstallmentDueDate(admDate, 2), amount: 0, paid_date: '' },
       ]
     });
     setShowAgreementModal(true);
@@ -277,11 +296,14 @@ export const StudentsView = () => {
   const handleAddInstalment = () => {
     const nextIdx = agreementForm.instalments.length + 1;
     const sfx = nextIdx === 1 ? 'st' : nextIdx === 2 ? 'nd' : nextIdx === 3 ? 'rd' : 'th';
+    const admDate = agreementForm.agreement_date || new Date().toISOString().split('T')[0];
+    const autoDueDate = calculateInstallmentDueDate(admDate, agreementForm.instalments.length);
+
     setAgreementForm({
       ...agreementForm,
       instalments: [
         ...agreementForm.instalments,
-        { name: `${nextIdx}${sfx} Instalment`, due_date: '', amount: 0, paid_date: '' }
+        { name: `${nextIdx}${sfx} Instalment`, due_date: autoDueDate, amount: 0, paid_date: '' }
       ]
     });
   };
@@ -342,19 +364,21 @@ export const StudentsView = () => {
   const handleExportCSV = async () => {
     try {
       const res = await api.getExportCSV('students');
-      const csvContent = "data:text/csv;charset=utf-8," +
-        ["Roll No,First Name,Last Name,Gender,Phone,Email,Status,Net Fee,Outstanding"]
-          .concat(res.records.map(r => `${r.roll_no},${r.first_name},${r.last_name},${r.gender},${r.phone},${r.email},${r.status},${r.net_fee},${r.outstanding_balance}`))
-          .join("\n");
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", res.filename);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      if (res?.csv_raw) {
+        const blob = new Blob([res.csv_raw], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', res.filename || 'ims-export-students.csv');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        showToast('No records returned for export.', 'warning');
+      }
     } catch (err) {
-      showToast(err.message, 'danger');
+      showToast(err.message || 'Failed to export CSV', 'danger');
     }
   };
 

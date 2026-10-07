@@ -359,7 +359,7 @@ export const AcademicView = () => {
                             </div>
                           )}
                         </td>
-                        <td>{b.course_name}</td>
+                        <td>{b.course_name || 'General / All'}</td>
                         <td>{b.teacher_name || 'Unassigned'}</td>
                         <td style={{ width: '160px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 600 }}>
@@ -437,15 +437,6 @@ export const AcademicView = () => {
           <div className="ims-modal-content">
             <h3>{editingBatch ? `Edit Batch — ${editingBatch.name}` : 'Add New Batch'}</h3>
             <form onSubmit={handleSaveBatch}>
-              <div className="ims-form-group">
-                <label>Parent Course *</label>
-                <select className="ims-select" required value={batchForm.course_id} onChange={(e) => setBatchForm({ ...batchForm, course_id: e.target.value })}>
-                  <option value="">Select Course...</option>
-                  {courses.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
-                  ))}
-                </select>
-              </div>
               <div className="ims-form-group">
                 <label>Batch Name *</label>
                 <input type="text" className="ims-input" required placeholder="e.g. Morning Batch A" value={batchForm.name} onChange={(e) => setBatchForm({ ...batchForm, name: e.target.value })} />

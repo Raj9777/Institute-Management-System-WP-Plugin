@@ -87,13 +87,13 @@ ORDER BY b.created_at DESC
         $end_date = !empty($params['end_date']) ? sanitize_text_field($params['end_date']) : null;
         $timing = sanitize_text_field(isset($params['timing']) ? $params['timing'] : '');
 
-        if (empty($course_id) || empty($name)) {
-            return $this->error_response('missing_fields', __('Course ID and Batch Name are required.', 'institute-management-system'));
+        if (empty($name)) {
+            return $this->error_response('missing_fields', __('Batch Name is required.', 'institute-management-system'));
         }
 
         $table = "{$wpdb->prefix}ims_batches";
         $inserted = $wpdb->insert($table, array(
-            'course_id'  => $course_id,
+            'course_id'  => $course_id ?: 0,
             'name'       => $name,
             'capacity'   => $capacity,
             'teacher_id' => $teacher_id,

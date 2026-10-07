@@ -11,6 +11,7 @@ import { StudentsView } from './views/StudentsView';
 import { AcademicView } from './views/AcademicView';
 import { AttendanceView } from './views/AttendanceView';
 import { FinancesView } from './views/FinancesView';
+import { ExpensesView } from './views/ExpensesView';
 import { VendorsView } from './views/VendorsView';
 import { PayrollView } from './views/PayrollView';
 import { SettingsView } from './views/SettingsView';
@@ -26,6 +27,7 @@ const MainLayout = () => {
       case 'academic': return <AcademicView />;
       case 'attendance': return <AttendanceView />;
       case 'finances': return <FinancesView />;
+      case 'expenses': return <ExpensesView />;
       case 'vendors': return <VendorsView />;
       case 'payroll': return <PayrollView />;
       case 'settings': return <SettingsView />;

@@ -81,6 +81,13 @@ class IMS_DB extends IMS_DB_Base {
             return sprintf('%s%s-%04d', $year, $month, $next_val);
         }
 
+        if ($key === 'voucher') {
+            if (!empty($prefix) && $prefix !== 'VOU') {
+                return sprintf('%s-%s%s-%04d', $prefix, $year, $month, $next_val);
+            }
+            return sprintf('%s%s%04d', $year, $month, $next_val);
+        }
+
         return sprintf('%s-%s-%04d', $prefix, $year, $next_val);
     }
 

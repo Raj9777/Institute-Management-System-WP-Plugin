@@ -75,7 +75,7 @@ CREATE TABLE {$wpdb->prefix}ims_courses (
 
 CREATE TABLE {$wpdb->prefix}ims_batches (
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  course_id bigint(20) unsigned NOT NULL,
+  course_id bigint(20) unsigned DEFAULT '0',
   name varchar(150) NOT NULL,
   capacity int(11) unsigned NOT NULL DEFAULT '30',
   teacher_id bigint(20) unsigned DEFAULT NULL,

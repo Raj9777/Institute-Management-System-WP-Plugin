@@ -76,4 +76,35 @@ class IMS_Helper {
         // Crores (1,00,00,000+)
         return trim(self::convert_number_to_words((int) floor($num / 10000000)) . ' Crore ' . self::convert_number_to_words($num % 10000000));
     }
+
+    /**
+     * Calculate Installment Due Date based on student admission date:
+     * - Admission <= 20th of month M -> 1st installment due date is before 10th of next month (M + 1).
+     * - Admission > 20th of month M (e.g. Oct 21) -> 1st installment due date is before 10th of next-next month (M + 2, e.g. Dec 10).
+     * Subsequent installments (index 1, 2, ...) fall on the 10th of consecutive subsequent months.
+     *
+     * @param string $admission_date_str Date string of admission / created_at
+     * @param int $installment_index 0-indexed installment number (0 for 1st, 1 for 2nd, etc.)
+     * @return string Y-m-d formatted due date
+     */
+    public static function calculate_installment_due_date($admission_date_str = '', $installment_index = 0) {
+        $timestamp = !empty($admission_date_str) ? strtotime($admission_date_str) : time();
+        if (!$timestamp) {
+            $timestamp = time();
+        }
+
+        $day   = (int) date('j', $timestamp);
+        $year  = (int) date('Y', $timestamp);
+        $month = (int) date('n', $timestamp);
+
+        // Admission on or before 20th -> 1st installment due next month (offset +1)
+        // Admission after 20th (e.g., Oct 21) -> 1st installment due month after next (offset +2, e.g. Dec 10)
+        $base_offset = ($day <= 20) ? 1 : 2;
+        $target_month = $month + $base_offset + (int) $installment_index;
+
+        $calc_year = $year + (int) floor(($target_month - 1) / 12);
+        $calc_month = (($target_month - 1) % 12) + 1;
+
+        return sprintf('%04d-%02d-10', $calc_year, $calc_month);
+    }
 }

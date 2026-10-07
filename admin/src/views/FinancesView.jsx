@@ -720,15 +720,21 @@ export const FinancesView = () => {
   const handleExportCSV = async (type) => {
     try {
       const res = await api.getExportCSV(type);
-      const jsonStr = JSON.stringify(res.records, null, 2);
-      const blob = new Blob([jsonStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = res.filename;
-      a.click();
+      if (res?.csv_raw) {
+        const blob = new Blob([res.csv_raw], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = res.filename || `ims-export-${type}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        showToast('No records found for export.', 'warning');
+      }
     } catch (err) {
-      showToast(err.message, 'danger');
+      showToast(err.message || 'Failed to export CSV', 'danger');
     }
   };
 
@@ -756,9 +762,6 @@ export const FinancesView = () => {
             <button className={`ims-btn ${activeTab === 'payments' ? 'ims-btn-primary' : 'ims-btn-secondary'}`} onClick={() => setActiveTab('payments')}>
               <Receipt size={16} /> Fee Receipts & Ledger
             </button>
-            <button className={`ims-btn ${activeTab === 'expenses' ? 'ims-btn-primary' : 'ims-btn-secondary'}`} onClick={() => setActiveTab('expenses')}>
-              <IndianRupee size={16} /> Expense Vouchers
-            </button>
             <button className={`ims-btn ${activeTab === 'documents' ? 'ims-btn-primary' : 'ims-btn-secondary'}`} onClick={() => setActiveTab('documents')}>
               <Printer size={16} /> Document History
             </button>
@@ -776,11 +779,6 @@ export const FinancesView = () => {
             {activeTab === 'payments' && (
               <button className="ims-btn ims-btn-primary ims-btn-sm" onClick={openCollectFeeModal}>
                 <Plus size={14} /> Collect Fee / Issue Receipt
-              </button>
-            )}
-            {activeTab === 'expenses' && (
-              <button className="ims-btn ims-btn-primary ims-btn-sm" onClick={openAddExpenseModal}>
-                <Plus size={14} /> Record Expense Voucher
               </button>
             )}
           </div>

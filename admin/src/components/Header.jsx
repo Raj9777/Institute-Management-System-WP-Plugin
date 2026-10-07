@@ -13,10 +13,13 @@ export const Header = () => {
   const getTitle = () => {
     switch (currentView) {
       case 'dashboard': return 'Dashboard Overview';
+      case 'enquiries': return 'Student Enquiries (Leads)';
       case 'students': return 'Student Admission & Directory';
       case 'academic': return 'Courses & Batches';
       case 'attendance': return 'Dual-Mode Attendance';
-      case 'finances': return 'GST Invoices & Receipts';
+      case 'finances': return 'GST Invoices & Fee Receipts';
+      case 'expenses': return 'Expense Vouchers & Ledger';
+      case 'vendors': return 'Vendor & Supplier Directory';
       case 'payroll': return 'Staff Directory & Payroll';
       case 'settings': return 'Institute Branding & Settings';
       default: return 'IMS Portal';

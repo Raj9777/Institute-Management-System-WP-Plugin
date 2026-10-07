@@ -35,26 +35,67 @@ class IMS_REST_Reports extends IMS_REST_Base {
         switch ($type) {
             case 'students':
                 $table = "{$wpdb->prefix}ims_students";
-                $results = $wpdb->get_results("SELECT roll_no, first_name, last_name, gender, phone, email, status, created_at FROM {$table} WHERE deleted_at IS NULL", ARRAY_A);
-                $rows = $results;
+                $sql = "
+                    SELECT s.roll_no, s.first_name, s.last_name, s.gender, s.phone, s.email,
+                           COALESCE(c.name, 'Unassigned') AS course_name,
+                           COALESCE(b.name, 'Unassigned') AS batch_name,
+                           s.status,
+                           CAST(s.net_fee AS DECIMAL(12,2)) AS net_fee,
+                           CAST(COALESCE(p.paid, 0) AS DECIMAL(12,2)) AS total_paid,
+                           CAST(GREATEST(0, (s.net_fee - COALESCE(p.paid, 0))) AS DECIMAL(12,2)) AS outstanding_balance,
+                           DATE(s.created_at) AS admission_date
+                    FROM {$table} s
+                    LEFT JOIN {$wpdb->prefix}ims_courses c ON s.course_id = c.id
+                    LEFT JOIN {$wpdb->prefix}ims_batches b ON s.batch_id = b.id
+                    LEFT JOIN (
+                        SELECT student_id, SUM(CASE WHEN is_reversal = 1 THEN -ABS(amount) ELSE amount END) AS paid
+                        FROM {$wpdb->prefix}ims_payments
+                        WHERE deleted_at IS NULL
+                        GROUP BY student_id
+                    ) p ON s.id = p.student_id
+                    WHERE s.deleted_at IS NULL
+                    ORDER BY s.id DESC
+                ";
+                $rows = $wpdb->get_results($sql, ARRAY_A);
                 break;
 
             case 'invoices':
                 $table = "{$wpdb->prefix}ims_invoices";
-                $results = $wpdb->get_results("SELECT invoice_no, gstin, taxable_amount, cgst_amount, sgst_amount, total_tax, total_amount, invoice_date, status FROM {$table} WHERE deleted_at IS NULL", ARRAY_A);
-                $rows = $results;
+                $sql = "
+                    SELECT i.invoice_no, CONCAT(s.first_name, ' ', s.last_name) AS student_name, s.roll_no,
+                           i.gstin, i.taxable_amount, i.cgst_amount, i.sgst_amount, i.total_tax, i.total_amount,
+                           i.invoice_date, i.status
+                    FROM {$table} i
+                    LEFT JOIN {$wpdb->prefix}ims_students s ON i.student_id = s.id
+                    WHERE i.deleted_at IS NULL
+                    ORDER BY i.id DESC
+                ";
+                $rows = $wpdb->get_results($sql, ARRAY_A);
                 break;
 
             case 'payments':
                 $table = "{$wpdb->prefix}ims_payments";
-                $results = $wpdb->get_results("SELECT receipt_no, amount, payment_mode, reference_no, payment_date, is_reversal, reversal_reason FROM {$table} WHERE deleted_at IS NULL", ARRAY_A);
-                $rows = $results;
+                $sql = "
+                    SELECT p.receipt_no, CONCAT(s.first_name, ' ', s.last_name) AS student_name, s.roll_no,
+                           p.amount, p.payment_mode, p.reference_no, p.payment_date,
+                           p.is_reversal, p.reversal_reason
+                    FROM {$table} p
+                    LEFT JOIN {$wpdb->prefix}ims_students s ON p.student_id = s.id
+                    WHERE p.deleted_at IS NULL
+                    ORDER BY p.id DESC
+                ";
+                $rows = $wpdb->get_results($sql, ARRAY_A);
                 break;
 
             case 'expenses':
                 $table = "{$wpdb->prefix}ims_expenses";
-                $results = $wpdb->get_results("SELECT voucher_no, category, title, amount, gstin, vendor_name, expense_date, payment_mode FROM {$table} WHERE deleted_at IS NULL", ARRAY_A);
-                $rows = $results;
+                $sql = "
+                    SELECT voucher_no, category, title, description, amount, gstin, vendor_name, expense_date, payment_mode
+                    FROM {$table}
+                    WHERE deleted_at IS NULL
+                    ORDER BY expense_date DESC, id DESC
+                ";
+                $rows = $wpdb->get_results($sql, ARRAY_A);
                 break;
 
             default:
