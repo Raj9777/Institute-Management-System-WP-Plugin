@@ -168,6 +168,6 @@ export const api = {
   deletePayroll: (id) => apiFetch(`/payroll/${id}`, { method: 'DELETE' }),
 
   // Dashboard & Reports
-  getDashboardKPIs: () => apiFetch('/dashboard/kpis'),
+  getDashboardKPIs: (params = {}) => apiFetch(`/dashboard/kpis${buildQuery(params)}`),
   getExportCSV: (type) => apiFetch(`/reports/export?type=${type}`),
 };

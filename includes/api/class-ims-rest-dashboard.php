@@ -14,7 +14,7 @@ class IMS_REST_Dashboard extends IMS_REST_Base {
         ));
     }
 
-    public function get_kpis() {
+    public function get_kpis($request = null) {
         global $wpdb;
 
         // KPI 1: Active Students
@@ -40,14 +40,35 @@ class IMS_REST_Dashboard extends IMS_REST_Base {
         $due_students      = array();
         $critical_students = array();
 
-        if (current_user_can('ims_view_reports') || current_user_can('ims_manage_finances') || current_user_can('ims_manage_students') || current_user_can('administrator')) {
-            $month_start = date('Y-m-01');
-            $month_end   = date('Y-m-t');
-            $cur_month   = intval(date('n'));
-            $cur_year    = intval(date('Y'));
-            $month_year_str = sprintf('%04d-%02d', $cur_year, $cur_month);
+        $cur_month = intval(date('n'));
+        $cur_year  = intval(date('Y'));
 
-            // Detailed collection breakdown for the current month
+        if ($request instanceof WP_REST_Request) {
+            $month_param = $request->get_param('month_year');
+            $m_param     = $request->get_param('month');
+            $y_param     = $request->get_param('year');
+
+            if (!empty($month_param) && preg_match('/^(\d{4})-(\d{1,2})$/', trim($month_param), $matches)) {
+                $cur_year  = intval($matches[1]);
+                $cur_month = intval($matches[2]);
+            } elseif (!empty($m_param)) {
+                $m_val = intval($m_param);
+                $y_val = !empty($y_param) ? intval($y_param) : intval(date('Y'));
+                if ($m_val >= 1 && $m_val <= 12 && $y_val >= 2000 && $y_val <= 2100) {
+                    $cur_month = $m_val;
+                    $cur_year  = $y_val;
+                }
+            }
+        }
+
+        if (current_user_can('ims_view_reports') || current_user_can('ims_manage_finances') || current_user_can('ims_manage_students') || current_user_can('administrator')) {
+            $month_start        = sprintf('%04d-%02d-01', $cur_year, $cur_month);
+            $month_end_date     = date('Y-m-t', strtotime($month_start));
+            $month_end          = $month_end_date;
+            $month_end_datetime = $month_end_date . ' 23:59:59';
+            $month_year_str     = sprintf('%04d-%02d', $cur_year, $cur_month);
+
+            // Detailed collection breakdown for the selected month
             $payments_breakdown = $wpdb->get_results($wpdb->prepare("
                 SELECT p.amount, s.created_at AS student_admission_date
                 FROM {$wpdb->prefix}ims_payments p
@@ -59,15 +80,15 @@ class IMS_REST_Dashboard extends IMS_REST_Base {
             foreach ($payments_breakdown as $pb) {
                 $amt = floatval($pb->amount);
                 $monthly_revenue += $amt;
-                if (!empty($pb->student_admission_date) && $pb->student_admission_date >= $month_start) {
+                if (!empty($pb->student_admission_date) && $pb->student_admission_date >= $month_start && $pb->student_admission_date <= $month_end_datetime) {
                     $new_student_fee += $amt;
                 } else {
                     $old_student_fee += $amt;
                 }
             }
 
-            // Monthly expenditure
-            $vouchers_expense = (float) $wpdb->get_var($wpdb->prepare("SELECT COALESCE(SUM(amount), 0) FROM {$wpdb->prefix}ims_expenses WHERE expense_date >= %s AND deleted_at IS NULL", $month_start));
+            // Monthly expenditure for the selected month
+            $vouchers_expense = (float) $wpdb->get_var($wpdb->prepare("SELECT COALESCE(SUM(amount), 0) FROM {$wpdb->prefix}ims_expenses WHERE expense_date >= %s AND expense_date <= %s AND deleted_at IS NULL", $month_start, $month_end));
             $payroll_expense  = (float) $wpdb->get_var($wpdb->prepare("SELECT COALESCE(SUM(net_salary), 0) FROM {$wpdb->prefix}ims_payroll WHERE month_year = %s AND status IN ('finalized', 'paid') AND deleted_at IS NULL", $month_year_str));
             $monthly_expenses = $vouchers_expense + $payroll_expense;
 
@@ -150,6 +171,9 @@ class IMS_REST_Dashboard extends IMS_REST_Base {
         $total_should_collect = $monthly_revenue + $student_balance;
 
         return $this->success_response(array(
+            'selected_month'       => $cur_month,
+            'selected_year'        => $cur_year,
+            'selected_month_year'  => $month_year_str,
             'active_students'      => $active_students,
             'active_courses'       => $active_courses,
             'active_batches'       => $active_batches,

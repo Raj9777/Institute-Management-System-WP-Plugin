@@ -19,29 +19,55 @@ import {
   TrendingUp,
   Clock,
   CheckCircle2,
-  ShieldAlert
+  ShieldAlert,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw
 } from 'lucide-react';
 
 export const DashboardView = () => {
   const { setCurrentView, user, settings } = useApp();
   const [kpis, setKpis] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [updatingMonth, setUpdatingMonth] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [error, setError] = useState(null);
   const [activeOverdueTab, setActiveOverdueTab] = useState('critical'); // 'critical' | 'due'
 
+  const today = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1); // 1-12
+  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+
   const caps = user?.capabilities || {};
 
-  useEffect(() => {
-    loadKPIs();
-  }, []);
+  const monthsList = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
 
-  const loadKPIs = async () => {
-    setLoading(true);
+  const currentYear = today.getFullYear();
+  const yearOptions = [];
+  for (let y = currentYear - 4; y <= currentYear + 3; y++) {
+    yearOptions.push(y);
+  }
+
+  const isCurrentMonth = selectedMonth === (today.getMonth() + 1) && selectedYear === today.getFullYear();
+  const selectedMonthName = monthsList[selectedMonth - 1] || 'Month';
+
+  useEffect(() => {
+    loadKPIs(selectedMonth, selectedYear);
+  }, [selectedMonth, selectedYear]);
+
+  const loadKPIs = async (m = selectedMonth, y = selectedYear) => {
+    if (!kpis) {
+      setLoading(true);
+    } else {
+      setUpdatingMonth(true);
+    }
     setPermissionDenied(false);
     setError(null);
     try {
-      const res = await api.getDashboardKPIs();
+      const res = await api.getDashboardKPIs({ month: m, year: y });
       setKpis(res);
       // Default to critical if has critical students, otherwise due
       if (res?.critical_students?.length > 0) {
@@ -57,7 +83,32 @@ export const DashboardView = () => {
       }
     } finally {
       setLoading(false);
+      setUpdatingMonth(false);
     }
+  };
+
+  const handlePrevMonth = () => {
+    if (selectedMonth === 1) {
+      setSelectedMonth(12);
+      setSelectedYear((prev) => prev - 1);
+    } else {
+      setSelectedMonth((prev) => prev - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (selectedMonth === 12) {
+      setSelectedMonth(1);
+      setSelectedYear((prev) => prev + 1);
+    } else {
+      setSelectedMonth((prev) => prev + 1);
+    }
+  };
+
+  const handleResetCurrentMonth = () => {
+    const now = new Date();
+    setSelectedMonth(now.getMonth() + 1);
+    setSelectedYear(now.getFullYear());
   };
 
   const formatCurrency = (val) => {
@@ -206,7 +257,7 @@ export const DashboardView = () => {
       {/* Detailed Monthly Fee Collection & Recovery Widget */}
       {(caps.manage_finances || caps.view_reports || caps.manage_students) && (
         <div className="ims-card" style={{ marginBottom: '1.5rem', background: '#ffffff', border: '1px solid var(--ims-border)' }}>
-          <div className="ims-card-header" style={{ borderBottom: '1px solid var(--ims-border)', paddingBottom: '0.85rem' }}>
+          <div className="ims-card-header" style={{ borderBottom: '1px solid var(--ims-border)', paddingBottom: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <TrendingUp size={20} style={{ color: '#059669' }} />
               <div>
@@ -214,16 +265,81 @@ export const DashboardView = () => {
                   Monthly Fee Collection Breakdown & Recovery Target
                 </h3>
                 <div style={{ fontSize: '0.8rem', color: 'var(--ims-text-muted)' }}>
-                  Comprehensive overview of fee revenue collected in the current month across new and existing students.
+                  Overview of fee revenue collected in <strong>{selectedMonthName} {selectedYear}</strong> across new and existing students.
                 </div>
               </div>
             </div>
-            <span className="ims-badge ims-badge-success" style={{ fontSize: '0.85rem', padding: '5px 12px' }}>
-              {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
-            </span>
+
+            {/* Month Selector Controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: '#f8fafc', padding: '3px 6px', borderRadius: '8px', border: '1px solid var(--ims-border)' }}>
+                <button
+                  type="button"
+                  className="ims-btn ims-btn-secondary"
+                  onClick={handlePrevMonth}
+                  title="Previous Month"
+                  style={{ padding: '4px 6px', height: '30px', minWidth: '30px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                  disabled={updatingMonth}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+
+                <select
+                  className="ims-select"
+                  style={{ width: '125px', padding: '3px 8px', fontSize: '0.85rem', height: '30px' }}
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                  disabled={updatingMonth}
+                >
+                  {monthsList.map((m, idx) => (
+                    <option key={idx + 1} value={idx + 1}>{m}</option>
+                  ))}
+                </select>
+
+                <select
+                  className="ims-select"
+                  style={{ width: '85px', padding: '3px 6px', fontSize: '0.85rem', height: '30px' }}
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                  disabled={updatingMonth}
+                >
+                  {yearOptions.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  className="ims-btn ims-btn-secondary"
+                  onClick={handleNextMonth}
+                  title="Next Month"
+                  style={{ padding: '4px 6px', height: '30px', minWidth: '30px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                  disabled={updatingMonth}
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+
+              {!isCurrentMonth ? (
+                <button
+                  type="button"
+                  className="ims-btn ims-btn-secondary ims-btn-sm"
+                  onClick={handleResetCurrentMonth}
+                  title="Reset to current month"
+                  style={{ fontSize: '0.78rem', height: '30px', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--ims-primary)' }}
+                  disabled={updatingMonth}
+                >
+                  <RotateCcw size={12} /> This Month
+                </button>
+              ) : (
+                <span className="ims-badge ims-badge-success" style={{ fontSize: '0.8rem', padding: '5px 10px' }}>
+                  Current Month
+                </span>
+              )}
+            </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1rem', opacity: updatingMonth ? 0.6 : 1, transition: 'opacity 0.2s' }}>
             {/* 1. Total Collected for Month */}
             <div style={{ background: '#f0fdf4', padding: '1rem 1.25rem', borderRadius: '10px', border: '1px solid #bbf7d0' }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
@@ -233,7 +349,7 @@ export const DashboardView = () => {
                 {formatCurrency(kpis?.monthly_revenue)}
               </div>
               <div style={{ fontSize: '0.75rem', color: '#166534', marginTop: '0.2rem' }}>
-                Received this calendar month
+                Received in {selectedMonthName} {selectedYear}
               </div>
             </div>
 
@@ -246,7 +362,7 @@ export const DashboardView = () => {
                 {formatCurrency(kpis?.new_student_fee)}
               </div>
               <div style={{ fontSize: '0.75rem', color: '#1e40af', marginTop: '0.2rem' }}>
-                From admissions this month
+                From admissions in {selectedMonthName} {selectedYear}
               </div>
             </div>
 
