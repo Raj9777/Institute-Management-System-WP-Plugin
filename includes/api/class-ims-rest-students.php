@@ -37,6 +37,22 @@ class IMS_REST_Students extends IMS_REST_Base {
                 'permission_callback' => array($this, 'check_student_permission_write'),
             ),
         ));
+
+        register_rest_route($this->namespace, '/students/(?P<id>\d+)/position', array(
+            array(
+                'methods'             => 'POST',
+                'callback'            => array($this, 'update_position'),
+                'permission_callback' => array($this, 'check_student_permission_write'),
+            ),
+        ));
+
+        register_rest_route($this->namespace, '/students/(?P<id>\d+)/upgrade', array(
+            array(
+                'methods'             => 'POST',
+                'callback'            => array($this, 'upgrade_course'),
+                'permission_callback' => array($this, 'check_student_permission_write'),
+            ),
+        ));
     }
 
     public function check_student_permission_write() {
@@ -219,8 +235,13 @@ WHERE s.id = %d AND s.deleted_at IS NULL
         }
         $net_fee = max(0.00, round($net_fee, 2));
 
+        $admission_date = !empty($params['admission_date']) ? sanitize_text_field($params['admission_date']) : current_time('Y-m-d');
+        $admission_fee  = isset($params['admission_fee']) ? floatval($params['admission_fee']) : 0.00;
+
         // Generate transaction-safe Roll Number
         $roll_no = IMS_DB::get_next_sequence('roll_no');
+
+        $created_datetime = $admission_date . ' ' . current_time('H:i:s');
 
         $table = "{$wpdb->prefix}ims_students";
         $inserted = $wpdb->insert($table, array(
@@ -240,15 +261,25 @@ WHERE s.id = %d AND s.deleted_at IS NULL
             'discount_type'  => $discount_type,
             'discount_value' => $discount_val,
             'net_fee'        => $net_fee,
+            'admission_fee'  => $admission_fee,
+            'admission_date' => $admission_date,
+            'current_position' => sanitize_textarea_field(isset($params['current_position']) ? $params['current_position'] : ''),
+            'current_position_status' => sanitize_text_field(isset($params['current_position_status']) ? $params['current_position_status'] : ''),
+            'current_company_or_institution' => sanitize_text_field(isset($params['current_company_or_institution']) ? $params['current_company_or_institution'] : ''),
+            'current_designation' => sanitize_text_field(isset($params['current_designation']) ? $params['current_designation'] : ''),
+            'passed_out_year' => sanitize_text_field(isset($params['passed_out_year']) ? $params['passed_out_year'] : ''),
             'photo_url'      => esc_url_raw(isset($params['photo_url']) ? $params['photo_url'] : ''),
             'status'         => 'active',
+            'created_at'     => $created_datetime,
         ));
 
         if (false === $inserted) {
             return $this->error_response('db_error', __('Failed to create student record: ', 'institute-management-system') . $wpdb->last_error, 500);
         }
 
-        return $this->success_response(array('id' => $wpdb->insert_id, 'roll_no' => $roll_no, 'net_fee' => $net_fee, 'message' => __('Student admitted successfully.', 'institute-management-system')));
+        $student_id = $wpdb->insert_id;
+
+        return $this->success_response(array('id' => $student_id, 'roll_no' => $roll_no, 'net_fee' => $net_fee, 'message' => __('Student admitted successfully.', 'institute-management-system')));
     }
 
     public function update_student($request) {
@@ -276,8 +307,10 @@ WHERE s.id = %d AND s.deleted_at IS NULL
         }
         $net_fee = max(0.00, round($net_fee, 2));
 
-        $table = "{$wpdb->prefix}ims_students";
-        $updated = $wpdb->update($table, array(
+        $admission_date = !empty($params['admission_date']) ? sanitize_text_field($params['admission_date']) : null;
+        $admission_fee  = isset($params['admission_fee']) ? floatval($params['admission_fee']) : 0.00;
+
+        $update_data = array(
             'first_name'     => $first_name,
             'last_name'      => $last_name,
             'gender'         => sanitize_text_field(isset($params['gender']) ? $params['gender'] : 'unspecified'),
@@ -293,15 +326,116 @@ WHERE s.id = %d AND s.deleted_at IS NULL
             'discount_type'  => $discount_type,
             'discount_value' => $discount_val,
             'net_fee'        => $net_fee,
+            'admission_fee'  => $admission_fee,
             'photo_url'      => esc_url_raw(isset($params['photo_url']) ? $params['photo_url'] : ''),
             'status'         => sanitize_text_field(isset($params['status']) ? $params['status'] : 'active'),
-        ), array('id' => $id));
+        );
+
+        if (!empty($admission_date)) {
+            $update_data['admission_date'] = $admission_date;
+        }
+        if (isset($params['current_position'])) {
+            $update_data['current_position'] = sanitize_textarea_field($params['current_position']);
+        }
+        if (isset($params['current_position_status'])) {
+            $update_data['current_position_status'] = sanitize_text_field($params['current_position_status']);
+        }
+        if (isset($params['current_company_or_institution'])) {
+            $update_data['current_company_or_institution'] = sanitize_text_field($params['current_company_or_institution']);
+        }
+        if (isset($params['current_designation'])) {
+            $update_data['current_designation'] = sanitize_text_field($params['current_designation']);
+        }
+        if (isset($params['passed_out_year'])) {
+            $update_data['passed_out_year'] = sanitize_text_field($params['passed_out_year']);
+        }
+
+        $table = "{$wpdb->prefix}ims_students";
+        $updated = $wpdb->update($table, $update_data, array('id' => $id));
 
         if (false === $updated) {
             return $this->error_response('db_error', __('Failed to update student record: ', 'institute-management-system') . $wpdb->last_error, 500);
         }
 
         return $this->success_response(array('message' => __('Student profile updated.', 'institute-management-system')));
+    }
+
+    public function update_position($request) {
+        global $wpdb;
+        $id = (int) $request['id'];
+        $params = $request->get_json_params();
+
+        $table = "{$wpdb->prefix}ims_students";
+        $student = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d AND deleted_at IS NULL", $id));
+        if (!$student) {
+            return $this->error_response('not_found', __('Student record not found.', 'institute-management-system'), 404);
+        }
+
+        $update_data = array(
+            'current_position'               => sanitize_textarea_field(isset($params['current_position']) ? $params['current_position'] : ''),
+            'current_position_status'        => sanitize_text_field(isset($params['current_position_status']) ? $params['current_position_status'] : ''),
+            'current_company_or_institution' => sanitize_text_field(isset($params['current_company_or_institution']) ? $params['current_company_or_institution'] : ''),
+            'current_designation'            => sanitize_text_field(isset($params['current_designation']) ? $params['current_designation'] : ''),
+            'passed_out_year'                => sanitize_text_field(isset($params['passed_out_year']) ? $params['passed_out_year'] : ''),
+        );
+
+        if (!empty($params['status'])) {
+            $update_data['status'] = sanitize_text_field($params['status']);
+        }
+
+        $updated = $wpdb->update($table, $update_data, array('id' => $id));
+        if (false === $updated) {
+            return $this->error_response('db_error', __('Failed to update position details: ', 'institute-management-system') . $wpdb->last_error, 500);
+        }
+
+        require_once __DIR__ . '/../class-ims-audit.php';
+        IMS_Audit::log('student_position_updated', $id, sprintf('Updated current position for student %s (%s): %s at %s', $student->roll_no, $student->first_name . ' ' . $student->last_name, $update_data['current_position_status'], $update_data['current_company_or_institution']), get_current_user_id());
+
+        return $this->success_response(array('message' => __('Student position and career details updated successfully.', 'institute-management-system')));
+    }
+
+    public function upgrade_course($request) {
+        global $wpdb;
+        $id = (int) $request['id'];
+        $params = $request->get_json_params();
+
+        $table = "{$wpdb->prefix}ims_students";
+        $student = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d AND deleted_at IS NULL", $id));
+        if (!$student) {
+            return $this->error_response('not_found', __('Student record not found.', 'institute-management-system'), 404);
+        }
+
+        $new_course_id = !empty($params['course_id']) ? intval($params['course_id']) : $student->course_id;
+        $new_batch_id  = !empty($params['batch_id']) ? intval($params['batch_id']) : $student->batch_id;
+        $course_fee    = isset($params['course_fee']) ? floatval($params['course_fee']) : floatval($student->course_fee);
+        $discount_type = isset($params['discount_type']) && $params['discount_type'] === 'amount' ? 'amount' : 'percentage';
+        $discount_val  = isset($params['discount_value']) ? floatval($params['discount_value']) : 0.00;
+
+        if ($discount_type === 'percentage') {
+            $net_fee = $course_fee - ($course_fee * ($discount_val / 100.0));
+        } else {
+            $net_fee = $course_fee - $discount_val;
+        }
+        $net_fee = max(0.00, round($net_fee, 2));
+
+        $updated = $wpdb->update($table, array(
+            'course_id'      => $new_course_id,
+            'batch_id'       => $new_batch_id,
+            'course_fee'     => $course_fee,
+            'discount_type'  => $discount_type,
+            'discount_value' => $discount_val,
+            'net_fee'        => $net_fee,
+            'status'         => 'active',
+        ), array('id' => $id));
+
+        if (false === $updated) {
+            return $this->error_response('db_error', __('Failed to upgrade student course: ', 'institute-management-system') . $wpdb->last_error, 500);
+        }
+
+        require_once __DIR__ . '/../class-ims-audit.php';
+        IMS_Audit::log('student_course_upgraded', $id, sprintf('Student %s (%s) upgraded to Course ID #%d / Batch ID #%d (New Net Fee: ₹%s)', $student->roll_no, $student->first_name . ' ' . $student->last_name, $new_course_id, $new_batch_id, number_format($net_fee, 2)), get_current_user_id());
+
+        return $this->success_response(array('message' => __('Student upgraded/enrolled in new course successfully.', 'institute-management-system'), 'net_fee' => $net_fee));
     }
 
     public function delete_student($request) {

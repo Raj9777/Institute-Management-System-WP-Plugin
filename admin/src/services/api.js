@@ -104,6 +104,8 @@ export const api = {
   getStudent: (id) => apiFetch(`/students/${id}`),
   createStudent: (data) => apiFetch('/students', { method: 'POST', body: JSON.stringify(data) }),
   updateStudent: (id, data) => apiFetch(`/students/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  updateStudentPosition: (id, data) => apiFetch(`/students/${id}/position`, { method: 'POST', body: JSON.stringify(data) }),
+  upgradeStudentCourse: (id, data) => apiFetch(`/students/${id}/upgrade`, { method: 'POST', body: JSON.stringify(data) }),
   deleteStudent: (id) => apiFetch(`/students/${id}`, { method: 'DELETE' }),
 
   // Staff
@@ -124,7 +126,7 @@ export const api = {
   createInvoice: (data) => apiFetch('/invoices', { method: 'POST', body: JSON.stringify(data) }),
   deleteInvoice: (id) => apiFetch(`/invoices/${id}`, { method: 'DELETE' }),
 
-  getPayments: () => apiFetch('/payments'),
+  getPayments: (params = {}) => apiFetch(`/payments${buildQuery(params)}`),
   createPayment: (data) => apiFetch('/payments', { method: 'POST', body: JSON.stringify(data) }),
   getPaymentReceipt: (id) => apiFetch(`/payments/${id}/receipt`),
   deletePayment: (id) => apiFetch(`/payments/${id}`, { method: 'DELETE' }),
@@ -170,4 +172,6 @@ export const api = {
   // Dashboard & Reports
   getDashboardKPIs: (params = {}) => apiFetch(`/dashboard/kpis${buildQuery(params)}`),
   getExportCSV: (type) => apiFetch(`/reports/export?type=${type}`),
+  getMonthwiseReports: (year) => apiFetch(`/reports/monthwise${buildQuery({ year })}`),
+  getStudentsDetailedReport: (params = {}) => apiFetch(`/reports/students-detailed${buildQuery(params)}`),
 };

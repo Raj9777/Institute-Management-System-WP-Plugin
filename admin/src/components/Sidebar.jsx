@@ -12,7 +12,8 @@ import {
   LogOut,
   HelpCircle,
   Store,
-  IndianRupee
+  IndianRupee,
+  BarChart3
 } from 'lucide-react';
 
 export const Sidebar = () => {
@@ -34,6 +35,7 @@ export const Sidebar = () => {
     { id: 'expenses', label: 'Expense Vouchers', icon: IndianRupee, visible: Boolean(caps.manage_finances) },
     { id: 'vendors', label: 'Vendor Directory', icon: Store, visible: Boolean(caps.manage_finances) },
     { id: 'payroll', label: 'Staff & Payroll', icon: UserCheck, visible: Boolean(caps.view_payroll || caps.manage_payroll) },
+    { id: 'reports', label: 'Reports & Analytics', icon: BarChart3, visible: Boolean(caps.view_reports || caps.manage_finances || caps.manage_students) },
     { id: 'settings', label: 'Settings', icon: Settings, visible: Boolean(caps.manage_settings) },
   ];
 

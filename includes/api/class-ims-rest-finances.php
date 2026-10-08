@@ -209,12 +209,18 @@ ORDER BY i.created_at DESC
         $students_table = "{$wpdb->prefix}ims_students";
 
         $invoice_id = intval($request->get_param('invoice_id'));
+        $student_id = intval($request->get_param('student_id'));
         $where = "WHERE p.deleted_at IS NULL";
         $params = array();
 
         if (!empty($invoice_id)) {
             $where .= " AND p.invoice_id = %d";
             $params[] = $invoice_id;
+        }
+
+        if (!empty($student_id)) {
+            $where .= " AND p.student_id = %d";
+            $params[] = $student_id;
         }
 
         $sql = "

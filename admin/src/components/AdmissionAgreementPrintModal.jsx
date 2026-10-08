@@ -110,9 +110,9 @@ export const AdmissionAgreementPrintModal = ({ agreementData, onClose }) => {
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                <span style={{ fontWeight: 700, marginRight: '4px' }}>Date</span>
+                <span style={{ fontWeight: 700, marginRight: '4px' }}>Admission Date</span>
                 <span style={{ flex: 1, borderBottom: '1px dotted #0f172a', fontWeight: 700, paddingLeft: '0.25rem' }}>
-                  {a.agreement_date}
+                  {a.admission_date || a.agreement_date}
                 </span>
               </div>
             </div>

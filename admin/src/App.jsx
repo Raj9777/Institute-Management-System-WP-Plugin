@@ -14,6 +14,7 @@ import { FinancesView } from './views/FinancesView';
 import { ExpensesView } from './views/ExpensesView';
 import { VendorsView } from './views/VendorsView';
 import { PayrollView } from './views/PayrollView';
+import { ReportsView } from './views/ReportsView';
 import { SettingsView } from './views/SettingsView';
 
 const MainLayout = () => {
@@ -30,6 +31,7 @@ const MainLayout = () => {
       case 'expenses': return <ExpensesView />;
       case 'vendors': return <VendorsView />;
       case 'payroll': return <PayrollView />;
+      case 'reports': return <ReportsView />;
       case 'settings': return <SettingsView />;
       default: return <DashboardView />;
     }

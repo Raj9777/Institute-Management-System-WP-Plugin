@@ -46,6 +46,13 @@ CREATE TABLE {$wpdb->prefix}ims_students (
   discount_type varchar(20) DEFAULT 'percentage',
   discount_value decimal(12,2) DEFAULT '0.00',
   net_fee decimal(12,2) DEFAULT '0.00',
+  admission_fee decimal(12,2) DEFAULT '0.00',
+  admission_date date DEFAULT NULL,
+  current_position text DEFAULT NULL,
+  current_position_status varchar(50) DEFAULT '',
+  current_company_or_institution varchar(200) DEFAULT '',
+  current_designation varchar(100) DEFAULT '',
+  passed_out_year varchar(20) DEFAULT '',
   status varchar(20) DEFAULT 'active',
   photo_url text DEFAULT NULL,
   created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -55,7 +62,8 @@ CREATE TABLE {$wpdb->prefix}ims_students (
   KEY roll_no (roll_no),
   KEY course_id (course_id),
   KEY batch_id (batch_id),
-  KEY status (status)
+  KEY status (status),
+  KEY admission_date (admission_date)
 ) $charset_collate;
 
 CREATE TABLE {$wpdb->prefix}ims_courses (
@@ -402,6 +410,27 @@ CREATE TABLE {$wpdb->prefix}ims_admission_agreements (
             }
             if (!in_array('photo_url', $stud_cols, true)) {
                 $wpdb->query("ALTER TABLE {$stud_table} ADD COLUMN photo_url text DEFAULT NULL AFTER status");
+            }
+            if (!in_array('admission_fee', $stud_cols, true)) {
+                $wpdb->query("ALTER TABLE {$stud_table} ADD COLUMN admission_fee decimal(12,2) DEFAULT '0.00' AFTER net_fee");
+            }
+            if (!in_array('admission_date', $stud_cols, true)) {
+                $wpdb->query("ALTER TABLE {$stud_table} ADD COLUMN admission_date date DEFAULT NULL AFTER admission_fee");
+            }
+            if (!in_array('current_position', $stud_cols, true)) {
+                $wpdb->query("ALTER TABLE {$stud_table} ADD COLUMN current_position text DEFAULT NULL AFTER admission_date");
+            }
+            if (!in_array('current_position_status', $stud_cols, true)) {
+                $wpdb->query("ALTER TABLE {$stud_table} ADD COLUMN current_position_status varchar(50) DEFAULT '' AFTER current_position");
+            }
+            if (!in_array('current_company_or_institution', $stud_cols, true)) {
+                $wpdb->query("ALTER TABLE {$stud_table} ADD COLUMN current_company_or_institution varchar(200) DEFAULT '' AFTER current_position_status");
+            }
+            if (!in_array('current_designation', $stud_cols, true)) {
+                $wpdb->query("ALTER TABLE {$stud_table} ADD COLUMN current_designation varchar(100) DEFAULT '' AFTER current_company_or_institution");
+            }
+            if (!in_array('passed_out_year', $stud_cols, true)) {
+                $wpdb->query("ALTER TABLE {$stud_table} ADD COLUMN passed_out_year varchar(20) DEFAULT '' AFTER current_designation");
             }
             if (!in_array('deleted_at', $stud_cols, true)) {
                 $wpdb->query("ALTER TABLE {$stud_table} ADD COLUMN deleted_at datetime DEFAULT NULL AFTER updated_at");

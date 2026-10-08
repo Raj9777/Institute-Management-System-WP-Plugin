@@ -5,8 +5,29 @@ import { PhotoUpload } from '../components/PhotoUpload';
 import { AccessDenied } from '../components/AccessDenied';
 import { ErrorState } from '../components/ErrorState';
 import { AdmissionAgreementPrintModal } from '../components/AdmissionAgreementPrintModal';
+import { ReceiptPrintModal } from '../components/ReceiptPrintModal';
 import { StudentProfileView } from './StudentProfileView';
-import { Plus, Search, Download, Phone, Mail, Pencil, Trash2, Receipt, AlertCircle, FileText, Eye, X, Calendar, Printer } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  Download,
+  Phone,
+  Mail,
+  Pencil,
+  Trash2,
+  Receipt,
+  AlertCircle,
+  FileText,
+  Eye,
+  X,
+  Calendar,
+  Printer,
+  CreditCard,
+  ArrowUpRight,
+  CheckCircle2,
+  DollarSign,
+  GraduationCap
+} from 'lucide-react';
 
 export const StudentsView = () => {
   const { showToast } = useApp();
@@ -29,6 +50,36 @@ export const StudentsView = () => {
   const [studentDocs, setStudentDocs] = useState([]);
   const [printDoc, setPrintDoc] = useState(null);
 
+  // Collect Fee Modal State
+  const [feeStudent, setFeeStudent] = useState(null);
+  const [feeForm, setFeeForm] = useState({
+    amount: '',
+    payment_mode: 'cash',
+    payment_date: new Date().toISOString().split('T')[0],
+    reference_no: '',
+    course_fee_part: '',
+    exam_fee_part: '',
+    notes: ''
+  });
+  const [collectingFee, setCollectingFee] = useState(false);
+
+  // Student Receipts Modal State
+  const [receiptsStudent, setReceiptsStudent] = useState(null);
+  const [studentReceiptsList, setStudentReceiptsList] = useState([]);
+  const [loadingReceipts, setLoadingReceipts] = useState(false);
+  const [activeReceiptData, setActiveReceiptData] = useState(null);
+
+  // Upgrade Course Modal State
+  const [upgradeStudent, setUpgradeStudent] = useState(null);
+  const [upgradeForm, setUpgradeForm] = useState({
+    course_id: '',
+    batch_id: '',
+    course_fee: 0,
+    discount_type: 'percentage',
+    discount_value: 0
+  });
+  const [upgrading, setUpgrading] = useState(false);
+
   // Admission Agreement State
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementStudent, setAgreementStudent] = useState(null);
@@ -44,14 +95,10 @@ export const StudentsView = () => {
     first_receipt_date: '',
     second_receipt_no: '',
     second_receipt_date: '',
-    instalments: [
-      { name: '1st Instalment', due_date: '', amount: 0, paid_date: '' },
-      { name: '2nd Instalment', due_date: '', amount: 0, paid_date: '' },
-      { name: '3rd Instalment', due_date: '', amount: 0, paid_date: '' },
-    ]
+    instalments: []
   });
 
-  // Form State
+  // Admission Form State
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -67,6 +114,8 @@ export const StudentsView = () => {
     course_fee: 0,
     discount_type: 'percentage', // 'percentage' | 'amount'
     discount_value: 0,
+    admission_fee: 0,
+    admission_date: new Date().toISOString().split('T')[0],
     photo_url: '',
     status: 'active',
   });
@@ -141,6 +190,7 @@ export const StudentsView = () => {
       first_name: '', last_name: '', gender: 'male', dob: '',
       phone: '', email: '', address: '', guardian_name: '', guardian_phone: '',
       course_id: '', batch_id: '', course_fee: 0, discount_type: 'percentage', discount_value: 0,
+      admission_fee: 0, admission_date: new Date().toISOString().split('T')[0],
       photo_url: '', status: 'active'
     });
     setShowModal(true);
@@ -163,6 +213,8 @@ export const StudentsView = () => {
       course_fee: student.course_fee || 0,
       discount_type: student.discount_type || 'percentage',
       discount_value: student.discount_value || 0,
+      admission_fee: student.admission_fee || 0,
+      admission_date: student.admission_date || (student.created_at ? student.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
       photo_url: student.photo_url || '',
       status: student.status || 'active',
     });
@@ -183,12 +235,12 @@ export const StudentsView = () => {
     setFormData((prev) => ({
       ...prev,
       course_id: courseId,
-      batch_id: '', // reset batch when course changes
+      batch_id: '',
       course_fee: selectedCourse ? parseFloat(selectedCourse.fee_amount) : 0,
     }));
   };
 
-  // Calculated Net Fee (read-only)
+  // Calculated Net Fee
   const calculateNetFee = () => {
     const fee = parseFloat(formData.course_fee) || 0;
     const disc = parseFloat(formData.discount_value) || 0;
@@ -259,7 +311,7 @@ export const StudentsView = () => {
     const d = dateStr ? new Date(dateStr) : new Date();
     const day = d.getDate();
     const year = d.getFullYear();
-    const month = d.getMonth(); // 0-indexed
+    const month = d.getMonth();
     const baseOffset = day <= 20 ? 1 : 2;
     const targetDate = new Date(year, month + baseOffset + installmentIdx, 10);
     const yyyy = targetDate.getFullYear();
@@ -268,36 +320,62 @@ export const StudentsView = () => {
     return `${yyyy}-${mm}-${dd}`;
   };
 
+  // Open Admission Agreement Modal with Course Duration Month division and Admission Fee
   const openAgreementModal = (student) => {
     setAgreementStudent(student);
-    const admDate = student.created_at ? student.created_at.split('T')[0] : new Date().toISOString().split('T')[0];
+    const admDate = student.admission_date || (student.created_at ? student.created_at.split('T')[0] : new Date().toISOString().split('T')[0]);
     const net = parseFloat(student.net_fee || 0);
+    const admFee = parseFloat(student.admission_fee || 0);
+    
+    // Find course duration months
+    const selectedCourse = courses.find((c) => c.id == student.course_id);
+    const durationMonths = selectedCourse ? parseInt(selectedCourse.duration_months, 10) || 3 : 3;
+
+    const remainingBal = Math.max(0, net - admFee);
+    const perInstalment = durationMonths > 0 ? Math.round((remainingBal / durationMonths) * 100) / 100 : remainingBal;
+
+    const initialInstalments = [];
+    
+    // 1. Admission Fee first
+    initialInstalments.push({
+      name: 'Admission Fee',
+      due_date: admDate,
+      amount: admFee,
+      paid_date: admFee > 0 ? admDate : ''
+    });
+
+    // 2. Divide remaining across duration months
+    for (let i = 0; i < durationMonths; i++) {
+      const sfx = (i + 1) === 1 ? 'st' : (i + 1) === 2 ? 'nd' : (i + 1) === 3 ? 'rd' : 'th';
+      initialInstalments.push({
+        name: `${i + 1}${sfx} Instalment`,
+        due_date: calculateInstallmentDueDate(admDate, i),
+        amount: perInstalment,
+        paid_date: ''
+      });
+    }
 
     setAgreementForm({
       agreement_date: admDate,
-      prev_invoice_no: '',
+      prev_invoice_no: student.latest_invoice_no || '',
       inv_val: net,
       exam_fee: 0,
       caution_deposit: 0,
       first_receipt_no: '',
-      first_receipt_val: 0,
-      first_receipt_date: '',
+      first_receipt_val: admFee > 0 ? admFee : 0,
+      first_receipt_date: admFee > 0 ? admDate : '',
       second_receipt_no: '',
       second_receipt_date: '',
-      instalments: [
-        { name: '1st Instalment', due_date: calculateInstallmentDueDate(admDate, 0), amount: net, paid_date: '' },
-        { name: '2nd Instalment', due_date: calculateInstallmentDueDate(admDate, 1), amount: 0, paid_date: '' },
-        { name: '3rd Instalment', due_date: calculateInstallmentDueDate(admDate, 2), amount: 0, paid_date: '' },
-      ]
+      instalments: initialInstalments
     });
     setShowAgreementModal(true);
   };
 
   const handleAddInstalment = () => {
-    const nextIdx = agreementForm.instalments.length + 1;
+    const nextIdx = agreementForm.instalments.length;
     const sfx = nextIdx === 1 ? 'st' : nextIdx === 2 ? 'nd' : nextIdx === 3 ? 'rd' : 'th';
     const admDate = agreementForm.agreement_date || new Date().toISOString().split('T')[0];
-    const autoDueDate = calculateInstallmentDueDate(admDate, agreementForm.instalments.length);
+    const autoDueDate = calculateInstallmentDueDate(admDate, nextIdx);
 
     setAgreementForm({
       ...agreementForm,
@@ -344,6 +422,153 @@ export const StudentsView = () => {
     }
   };
 
+  // -------------------------------------------------------------
+  // QUICK FEE COLLECTION MODAL LOGIC
+  // -------------------------------------------------------------
+  const openCollectFeeModal = (student) => {
+    setFeeStudent(student);
+    const bal = parseFloat(student.outstanding_balance || 0);
+    setFeeForm({
+      amount: bal > 0 ? String(bal) : '',
+      payment_mode: 'cash',
+      payment_date: new Date().toISOString().split('T')[0],
+      reference_no: '',
+      course_fee_part: bal > 0 ? String(bal) : '',
+      exam_fee_part: '',
+      notes: ''
+    });
+  };
+
+  const handleCollectFeeSubmit = async (e) => {
+    e.preventDefault();
+    if (!feeStudent) return;
+    const amountVal = parseFloat(feeForm.amount);
+    if (!amountVal || amountVal <= 0) {
+      showToast('Please enter a valid payment amount.', 'danger');
+      return;
+    }
+
+    try {
+      setCollectingFee(true);
+      const payload = {
+        student_id: feeStudent.id,
+        amount: amountVal,
+        payment_mode: feeForm.payment_mode,
+        payment_date: feeForm.payment_date,
+        reference_no: feeForm.reference_no,
+        fee_breakdown: {
+          course_fee: parseFloat(feeForm.course_fee_part) || amountVal,
+          exam_fee: parseFloat(feeForm.exam_fee_part) || 0,
+          total: amountVal
+        }
+      };
+
+      const res = await api.createPayment(payload);
+      showToast(`Fee Payment of ₹${amountVal.toLocaleString('en-IN')} recorded successfully!`, 'success');
+      setFeeStudent(null);
+      loadData();
+
+      // Immediately fetch official receipt to print
+      if (res?.id) {
+        try {
+          const recData = await api.getPaymentReceipt(res.id);
+          setActiveReceiptData(recData);
+        } catch (rErr) {
+          console.error(rErr);
+        }
+      }
+    } catch (err) {
+      showToast(err.message || 'Failed to record fee payment.', 'danger');
+    } finally {
+      setCollectingFee(false);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // STUDENT RECEIPTS MODAL LOGIC
+  // -------------------------------------------------------------
+  const openReceiptsModal = async (student) => {
+    setReceiptsStudent(student);
+    setStudentReceiptsList([]);
+    setLoadingReceipts(true);
+    try {
+      const res = await api.getPayments({ student_id: student.id });
+      setStudentReceiptsList(res || []);
+    } catch (err) {
+      showToast(err.message || 'Failed to load student receipts.', 'danger');
+    } finally {
+      setLoadingReceipts(false);
+    }
+  };
+
+  const handleViewReceiptPrint = async (paymentId) => {
+    try {
+      const data = await api.getPaymentReceipt(paymentId);
+      setActiveReceiptData(data);
+    } catch (err) {
+      showToast(err.message || 'Failed to fetch receipt printable data', 'danger');
+    }
+  };
+
+  // -------------------------------------------------------------
+  // UPGRADE COURSE MODAL LOGIC
+  // -------------------------------------------------------------
+  const openUpgradeModal = (student) => {
+    setUpgradeStudent(student);
+    const currCourse = courses.find(c => c.id == student.course_id);
+    setUpgradeForm({
+      course_id: student.course_id || '',
+      batch_id: student.batch_id || '',
+      course_fee: currCourse ? parseFloat(currCourse.fee_amount) : parseFloat(student.course_fee || 0),
+      discount_type: student.discount_type || 'percentage',
+      discount_value: student.discount_value || 0
+    });
+  };
+
+  const handleUpgradeCourseChange = (newCourseId) => {
+    const selectedCourse = courses.find((c) => c.id == newCourseId);
+    setUpgradeForm((prev) => ({
+      ...prev,
+      course_id: newCourseId,
+      batch_id: '',
+      course_fee: selectedCourse ? parseFloat(selectedCourse.fee_amount) : 0,
+    }));
+  };
+
+  const calculateUpgradeNetFee = () => {
+    const fee = parseFloat(upgradeForm.course_fee) || 0;
+    const disc = parseFloat(upgradeForm.discount_value) || 0;
+    let net = fee;
+    if (upgradeForm.discount_type === 'percentage') {
+      net = fee - (fee * (disc / 100));
+    } else {
+      net = fee - disc;
+    }
+    return Math.max(0, Math.round(net * 100) / 100);
+  };
+
+  const handleUpgradeSubmit = async (e) => {
+    e.preventDefault();
+    if (!upgradeStudent) return;
+    try {
+      setUpgrading(true);
+      const res = await api.upgradeStudentCourse(upgradeStudent.id, {
+        course_id: upgradeForm.course_id,
+        batch_id: upgradeForm.batch_id,
+        course_fee: upgradeForm.course_fee,
+        discount_type: upgradeForm.discount_type,
+        discount_value: upgradeForm.discount_value
+      });
+      showToast(res.message || 'Student enrolled in new course successfully!', 'success');
+      setUpgradeStudent(null);
+      loadData();
+    } catch (err) {
+      showToast(err.message || 'Course upgrade failed.', 'danger');
+    } finally {
+      setUpgrading(false);
+    }
+  };
+
   const openStudentLedger = async (student) => {
     setLedgerStudent(student);
     setLedgerTab('ledger');
@@ -382,9 +607,10 @@ export const StudentsView = () => {
     }
   };
 
-  // Filter batches by selected course
+  // Filter batches by selected course in admission form
   const selectedCourseObj = courses.find((c) => c.id == formData.course_id);
   const availableBatches = batches.filter((b) => !formData.course_id || b.course_id == formData.course_id);
+  const upgradeAvailableBatches = batches.filter((b) => !upgradeForm.course_id || b.course_id == upgradeForm.course_id);
 
   if (permissionDenied) return <AccessDenied />;
   if (error) return <ErrorState message={error} onRetry={loadData} />;
@@ -440,7 +666,7 @@ export const StudentsView = () => {
                 <th>Roll No</th>
                 <th>Student Name</th>
                 <th>Course & Batch</th>
-                <th>Contact</th>
+                <th>Admission Date</th>
                 <th>Net Fee (₹)</th>
                 <th>Outstanding (₹)</th>
                 <th>Status</th>
@@ -478,7 +704,9 @@ export const StudentsView = () => {
                         )}
                         <div>
                           <div style={{ fontWeight: 600 }}>{s.first_name} {s.last_name}</div>
-                          <div style={{ fontSize: '0.78rem', color: 'var(--ims-text-muted)', textTransform: 'capitalize' }}>{s.gender}</div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--ims-text-muted)', display: 'flex', gap: '0.5rem' }}>
+                            {s.phone && <span><Phone size={11} /> {s.phone}</span>}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -487,8 +715,14 @@ export const StudentsView = () => {
                       <div style={{ fontSize: '0.78rem', color: 'var(--ims-text-muted)' }}>{s.batch_name || 'Unassigned'}</div>
                     </td>
                     <td>
-                      <div style={{ fontSize: '0.85rem' }}><Phone size={12} /> {s.phone || 'N/A'}</div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--ims-text-muted)' }}><Mail size={12} /> {s.email || 'N/A'}</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                        {s.admission_date || (s.created_at ? s.created_at.split('T')[0] : 'N/A')}
+                      </div>
+                      {parseFloat(s.admission_fee || 0) > 0 && (
+                        <div style={{ fontSize: '0.72rem', color: '#10b981' }}>
+                          Adm: ₹{parseFloat(s.admission_fee).toLocaleString('en-IN')}
+                        </div>
+                      )}
                     </td>
                     <td style={{ fontWeight: 600 }}>₹{parseFloat(s.net_fee || 0).toLocaleString('en-IN')}</td>
                     <td style={{ fontWeight: 700, color: parseFloat(s.outstanding_balance || 0) > 0 ? 'var(--ims-danger)' : 'var(--ims-success)' }}>
@@ -500,41 +734,65 @@ export const StudentsView = () => {
                       </span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.35rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.3rem', flexWrap: 'nowrap' }}>
+                        {/* 1. Quick Collect Fee Button */}
+                        <button
+                          className="ims-btn ims-btn-primary ims-btn-sm"
+                          style={{ background: '#10b981', borderColor: '#10b981', padding: '0.3rem 0.55rem', fontSize: '0.75rem' }}
+                          title="Collect Fee & Print Receipt"
+                          onClick={() => openCollectFeeModal(s)}
+                        >
+                          <DollarSign size={13} /> Fee
+                        </button>
+
+                        {/* 2. Receipts Button */}
+                        <button
+                          className="ims-btn ims-btn-secondary ims-btn-sm"
+                          style={{ padding: '0.3rem 0.55rem', fontSize: '0.75rem' }}
+                          title="View Payment Receipts"
+                          onClick={() => openReceiptsModal(s)}
+                        >
+                          <Receipt size={13} /> Receipt
+                        </button>
+
+                        {/* 3. Upgrade Course Button */}
+                        <button
+                          className="ims-btn ims-btn-secondary ims-btn-sm"
+                          style={{ padding: '0.3rem 0.55rem', fontSize: '0.75rem', color: '#6366f1' }}
+                          title="Upgrade / Change Course"
+                          onClick={() => openUpgradeModal(s)}
+                        >
+                          <ArrowUpRight size={13} /> Upgrade
+                        </button>
+
+                        {/* Profile & Agreement */}
                         <button
                           className="ims-btn ims-btn-secondary ims-btn-sm"
                           title="View Full Profile"
                           onClick={() => setSelectedStudentProfileId(s.id)}
                         >
-                          <Eye size={14} />
-                        </button>
-                        <button
-                          className="ims-btn ims-btn-secondary ims-btn-sm"
-                          title="Student Ledger"
-                          onClick={() => openStudentLedger(s)}
-                        >
-                          <Receipt size={14} />
+                          <Eye size={13} />
                         </button>
                         <button
                           className="ims-btn ims-btn-secondary ims-btn-sm"
                           title="Admission Agreement / Fee Plan"
                           onClick={() => openAgreementModal(s)}
                         >
-                          <FileText size={14} />
+                          <FileText size={13} />
                         </button>
                         <button
                           className="ims-btn ims-btn-secondary ims-btn-sm"
                           title="Edit Student"
                           onClick={() => openEditModal(s)}
                         >
-                          <Pencil size={14} />
+                          <Pencil size={13} />
                         </button>
                         <button
                           className="ims-btn ims-btn-danger ims-btn-sm"
                           title="Delete Student"
                           onClick={() => handleDeleteStudent(s)}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                         </button>
                       </div>
                     </td>
@@ -549,13 +807,14 @@ export const StudentsView = () => {
       {/* Student Admission / Edit Modal */}
       {showModal && (
         <div className="ims-modal-overlay">
-          <div className="ims-modal-content" style={{ maxWidth: '650px' }}>
+          <div className="ims-modal-content" style={{ maxWidth: '680px' }}>
             <h3 style={{ marginTop: 0, marginBottom: '1.25rem' }}>
               {editingStudent ? `Edit Student — ${editingStudent.roll_no}` : 'Student Admission Form'}
             </h3>
             <form onSubmit={handleSubmit}>
-              {/* Course & Batch Selection */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              
+              {/* Admission Date & Academic Info */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
                 <div className="ims-form-group">
                   <label>Course *</label>
                   <select
@@ -591,13 +850,24 @@ export const StudentsView = () => {
                     ))}
                   </select>
                 </div>
+
+                <div className="ims-form-group">
+                  <label>Admission Date *</label>
+                  <input
+                    type="date"
+                    className="ims-input"
+                    required
+                    value={formData.admission_date}
+                    onChange={(e) => setFormData({ ...formData, admission_date: e.target.value })}
+                  />
+                </div>
               </div>
 
-              {/* Financials: Course Fee, Discount & Net Fee */}
+              {/* Financials: Course Fee, Discount, Net Fee & Admission Fee */}
               <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid var(--ims-border)', marginBottom: '1rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', alignItems: 'flex-start' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr 1fr 1fr', gap: '0.65rem', alignItems: 'flex-start' }}>
                   <div className="ims-form-group">
-                    <label style={{ fontSize: '0.82rem' }}>Base Course Fee (₹) *</label>
+                    <label style={{ fontSize: '0.8rem' }}>Course Fee (₹) *</label>
                     <input
                       type="number"
                       className="ims-input"
@@ -608,11 +878,11 @@ export const StudentsView = () => {
                   </div>
 
                   <div className="ims-form-group">
-                    <label style={{ fontSize: '0.82rem' }}>Discount Type & Value</label>
+                    <label style={{ fontSize: '0.8rem' }}>Discount</label>
                     <div style={{ display: 'flex', gap: '0.25rem' }}>
                       <select
                         className="ims-select"
-                        style={{ width: '70px', padding: '4px' }}
+                        style={{ width: '65px', padding: '4px' }}
                         value={formData.discount_type}
                         onChange={(e) => setFormData({ ...formData, discount_type: e.target.value })}
                       >
@@ -631,7 +901,7 @@ export const StudentsView = () => {
                   </div>
 
                   <div className="ims-form-group">
-                    <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--ims-primary)' }}>Agreed Net Fee (₹)</label>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--ims-primary)' }}>Agreed Net Fee (₹)</label>
                     <input
                       type="number"
                       className="ims-input"
@@ -640,7 +910,25 @@ export const StudentsView = () => {
                       value={calculateNetFee()}
                     />
                   </div>
+
+                  <div className="ims-form-group">
+                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#10b981' }}>Admission Fee (₹)</label>
+                    <input
+                      type="number"
+                      className="ims-input"
+                      placeholder="0.00"
+                      value={formData.admission_fee}
+                      onChange={(e) => setFormData({ ...formData, admission_fee: e.target.value })}
+                    />
+                  </div>
                 </div>
+
+                {parseFloat(formData.admission_fee) > 0 && (
+                  <div style={{ fontSize: '0.78rem', color: '#475569', marginTop: '0.35rem', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Initial Payment at Admission: <strong>₹{parseFloat(formData.admission_fee || 0).toLocaleString('en-IN')}</strong></span>
+                    <span>Remaining Balance: <strong>₹{Math.max(0, calculateNetFee() - parseFloat(formData.admission_fee || 0)).toLocaleString('en-IN')}</strong></span>
+                  </div>
+                )}
 
                 {isDiscountOverFee() && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#ef4444', fontSize: '0.8rem', marginTop: '0.5rem' }}>
@@ -688,7 +976,6 @@ export const StudentsView = () => {
                 </div>
                 <div className="ims-form-group">
                   <label>Date of Birth</label>
-                  {/* Excluded from back-date restriction: Date of Birth is inherently a past date */}
                   <input
                     type="date"
                     className="ims-input"
@@ -752,6 +1039,312 @@ export const StudentsView = () => {
                 </button>
                 <button type="submit" className="ims-btn ims-btn-primary">
                   {editingStudent ? 'Save Profile Changes' : 'Confirm Student Admission'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* QUICK COLLECT FEE MODAL */}
+      {feeStudent && (
+        <div className="ims-modal-overlay">
+          <div className="ims-modal-content" style={{ maxWidth: '520px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--ims-border)', paddingBottom: '0.75rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, color: 'var(--ims-text-heading)' }}>
+                  Collect Fee Payment
+                </h3>
+                <div style={{ fontSize: '0.82rem', color: 'var(--ims-text-muted)', marginTop: '0.2rem' }}>
+                  Student: <strong>{feeStudent.first_name} {feeStudent.last_name}</strong> ({feeStudent.roll_no})
+                </div>
+              </div>
+              <button className="ims-btn-icon" onClick={() => setFeeStudent(null)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Student Balance Card */}
+            <div style={{ background: '#f8fafc', border: '1px solid var(--ims-border)', borderRadius: '8px', padding: '0.85rem', marginBottom: '1.25rem', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', textAlign: 'center' }}>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--ims-text-muted)' }}>Net Course Fee</div>
+                <div style={{ fontSize: '1rem', fontWeight: 700 }}>₹{parseFloat(feeStudent.net_fee || 0).toLocaleString('en-IN')}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: '#10b981' }}>Total Paid</div>
+                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#10b981' }}>₹{parseFloat(feeStudent.total_paid || 0).toLocaleString('en-IN')}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: '#ef4444' }}>Outstanding Due</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#ef4444' }}>₹{parseFloat(feeStudent.outstanding_balance || 0).toLocaleString('en-IN')}</div>
+              </div>
+            </div>
+
+            <form onSubmit={handleCollectFeeSubmit}>
+              <div style={{ display: 'grid', gap: '0.9rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '0.75rem' }}>
+                  <div className="ims-form-group" style={{ margin: 0 }}>
+                    <label className="ims-label" style={{ fontWeight: 700, color: 'var(--ims-primary)' }}>Amount to Collect (₹) *</label>
+                    <input
+                      type="number"
+                      step="any"
+                      className="ims-input"
+                      required
+                      placeholder="0.00"
+                      value={feeForm.amount}
+                      onChange={(e) => setFeeForm({ ...feeForm, amount: e.target.value, course_fee_part: e.target.value })}
+                      style={{ fontSize: '1.1rem', fontWeight: 700 }}
+                    />
+                  </div>
+
+                  <div className="ims-form-group" style={{ margin: 0 }}>
+                    <label className="ims-label">Payment Date *</label>
+                    <input
+                      type="date"
+                      className="ims-input"
+                      required
+                      value={feeForm.payment_date}
+                      onChange={(e) => setFeeForm({ ...feeForm, payment_date: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div className="ims-form-group" style={{ margin: 0 }}>
+                    <label className="ims-label">Payment Mode *</label>
+                    <select
+                      className="ims-input"
+                      value={feeForm.payment_mode}
+                      onChange={(e) => setFeeForm({ ...feeForm, payment_mode: e.target.value })}
+                    >
+                      <option value="cash">Cash</option>
+                      <option value="upi">UPI / QR Code</option>
+                      <option value="card">Debit / Credit Card</option>
+                      <option value="net_banking">Net Banking / NEFT</option>
+                      <option value="cheque">Cheque</option>
+                    </select>
+                  </div>
+
+                  <div className="ims-form-group" style={{ margin: 0 }}>
+                    <label className="ims-label">Transaction Ref / Cheque No.</label>
+                    <input
+                      type="text"
+                      className="ims-input"
+                      placeholder="e.g. UPI-987654 / Chq# 1234"
+                      value={feeForm.reference_no}
+                      onChange={(e) => setFeeForm({ ...feeForm, reference_no: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button type="button" className="ims-btn ims-btn-secondary" onClick={() => setFeeStudent(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="ims-btn ims-btn-primary" disabled={collectingFee} style={{ background: '#10b981', borderColor: '#10b981' }}>
+                  <Receipt size={16} />
+                  {collectingFee ? 'Processing...' : 'Record Payment & Print Receipt'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* STUDENT RECEIPTS LIST MODAL */}
+      {receiptsStudent && (
+        <div className="ims-modal-overlay">
+          <div className="ims-modal-content" style={{ maxWidth: '750px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--ims-border)', paddingBottom: '0.75rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>
+                  Money Receipts — {receiptsStudent.first_name} {receiptsStudent.last_name}
+                </h3>
+                <div style={{ fontSize: '0.82rem', color: 'var(--ims-text-muted)' }}>
+                  Roll No: <strong>{receiptsStudent.roll_no}</strong> | Course: {receiptsStudent.course_name}
+                </div>
+              </div>
+              <button className="ims-btn-icon" onClick={() => setReceiptsStudent(null)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="ims-table-wrapper" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+              <table className="ims-table">
+                <thead>
+                  <tr>
+                    <th>Receipt No.</th>
+                    <th>Payment Date</th>
+                    <th>Mode</th>
+                    <th>Reference</th>
+                    <th style={{ textAlign: 'right' }}>Amount Paid</th>
+                    <th style={{ textAlign: 'center' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loadingReceipts ? (
+                    <tr>
+                      <td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--ims-text-muted)' }}>
+                        Loading receipts...
+                      </td>
+                    </tr>
+                  ) : studentReceiptsList.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--ims-text-muted)' }}>
+                        No fee payment receipts recorded yet for this student.
+                      </td>
+                    </tr>
+                  ) : (
+                    studentReceiptsList.map((rec) => (
+                      <tr key={rec.id}>
+                        <td style={{ fontWeight: 700, color: 'var(--ims-primary)' }}>{rec.receipt_no}</td>
+                        <td>{rec.payment_date}</td>
+                        <td>
+                          <span className="ims-badge ims-badge-secondary" style={{ textTransform: 'uppercase', fontSize: '0.72rem' }}>
+                            {rec.payment_mode}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '0.82rem', color: 'var(--ims-text-muted)' }}>{rec.reference_no || '-'}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: '#10b981' }}>
+                          ₹{parseFloat(rec.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            className="ims-btn ims-btn-secondary ims-btn-sm"
+                            onClick={() => handleViewReceiptPrint(rec.id)}
+                            title="View / Print Official Receipt"
+                          >
+                            <Printer size={13} /> View / Print
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.25rem' }}>
+              <button className="ims-btn ims-btn-secondary" onClick={() => setReceiptsStudent(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* UPGRADE / CHANGE COURSE MODAL */}
+      {upgradeStudent && (
+        <div className="ims-modal-overlay">
+          <div className="ims-modal-content" style={{ maxWidth: '560px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--ims-border)', paddingBottom: '0.75rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>
+                  Upgrade / Change Student Course
+                </h3>
+                <div style={{ fontSize: '0.82rem', color: 'var(--ims-text-muted)' }}>
+                  Student: <strong>{upgradeStudent.first_name} {upgradeStudent.last_name}</strong> ({upgradeStudent.roll_no})
+                </div>
+              </div>
+              <button className="ims-btn-icon" onClick={() => setUpgradeStudent(null)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ background: '#f8fafc', padding: '0.75rem 1rem', borderRadius: '6px', border: '1px solid var(--ims-border)', marginBottom: '1.25rem', fontSize: '0.85rem' }}>
+              <div style={{ color: 'var(--ims-text-muted)' }}>Current Enrolled Course:</div>
+              <div style={{ fontWeight: 700, color: 'var(--ims-text-heading)' }}>
+                {upgradeStudent.course_name} (Batch: {upgradeStudent.batch_name || 'Unassigned'})
+              </div>
+            </div>
+
+            <form onSubmit={handleUpgradeSubmit}>
+              <div style={{ display: 'grid', gap: '0.9rem' }}>
+                <div className="ims-form-group" style={{ margin: 0 }}>
+                  <label className="ims-label" style={{ fontWeight: 700 }}>Select New Course to Enroll *</label>
+                  <select
+                    className="ims-input"
+                    required
+                    value={upgradeForm.course_id}
+                    onChange={(e) => handleUpgradeCourseChange(e.target.value)}
+                  >
+                    <option value="">Select Course...</option>
+                    {courses.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name} ({c.code}) — Fee: ₹{parseFloat(c.fee_amount).toLocaleString('en-IN')}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="ims-form-group" style={{ margin: 0 }}>
+                  <label className="ims-label">Select New Batch *</label>
+                  <select
+                    className="ims-input"
+                    required
+                    value={upgradeForm.batch_id}
+                    onChange={(e) => setUpgradeForm({ ...upgradeForm, batch_id: e.target.value })}
+                  >
+                    <option value="">Select Batch...</option>
+                    {upgradeAvailableBatches.map((b) => (
+                      <option key={b.id} value={b.id}>{b.name} ({b.timing || 'Standard'})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr 1.1fr', gap: '0.65rem', alignItems: 'flex-start', background: '#f1f5f9', padding: '0.85rem', borderRadius: '6px' }}>
+                  <div className="ims-form-group" style={{ margin: 0 }}>
+                    <label style={{ fontSize: '0.78rem' }}>Course Fee (₹) *</label>
+                    <input
+                      type="number"
+                      className="ims-input"
+                      required
+                      value={upgradeForm.course_fee}
+                      onChange={(e) => setUpgradeForm({ ...upgradeForm, course_fee: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="ims-form-group" style={{ margin: 0 }}>
+                    <label style={{ fontSize: '0.78rem' }}>Discount</label>
+                    <div style={{ display: 'flex', gap: '0.2rem' }}>
+                      <select
+                        className="ims-select"
+                        style={{ width: '55px', padding: '2px' }}
+                        value={upgradeForm.discount_type}
+                        onChange={(e) => setUpgradeForm({ ...upgradeForm, discount_type: e.target.value })}
+                      >
+                        <option value="percentage">%</option>
+                        <option value="amount">₹</option>
+                      </select>
+                      <input
+                        type="number"
+                        className="ims-input"
+                        placeholder="0"
+                        value={upgradeForm.discount_value}
+                        onChange={(e) => setUpgradeForm({ ...upgradeForm, discount_value: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="ims-form-group" style={{ margin: 0 }}>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--ims-primary)' }}>New Net Fee (₹)</label>
+                    <input
+                      type="number"
+                      className="ims-input"
+                      readOnly
+                      style={{ background: '#e2e8f0', fontWeight: 700, color: 'var(--ims-primary)' }}
+                      value={calculateUpgradeNetFee()}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button type="button" className="ims-btn ims-btn-secondary" onClick={() => setUpgradeStudent(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="ims-btn ims-btn-primary" disabled={upgrading}>
+                  <CheckCircle2 size={16} />
+                  {upgrading ? 'Upgrading...' : 'Confirm Course Upgrade'}
                 </button>
               </div>
             </form>
@@ -956,11 +1549,16 @@ export const StudentsView = () => {
       {/* Create Admission Agreement Modal */}
       {showAgreementModal && agreementStudent && (
         <div className="ims-modal-overlay">
-          <div className="ims-modal-content" style={{ maxWidth: '750px' }}>
+          <div className="ims-modal-content" style={{ maxWidth: '780px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem' }}>
-              <h3 style={{ margin: 0 }}>
-                Issue Admission Agreement — {agreementStudent.first_name} {agreementStudent.last_name} ({agreementStudent.roll_no})
-              </h3>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>
+                  Issue Admission Agreement & Fee Plan
+                </h3>
+                <div style={{ fontSize: '0.82rem', color: 'var(--ims-text-muted)' }}>
+                  Student: <strong>{agreementStudent.first_name} {agreementStudent.last_name}</strong> ({agreementStudent.roll_no}) | Course: <strong>{agreementStudent.course_name}</strong>
+                </div>
+              </div>
               <button className="ims-btn ims-btn-secondary ims-btn-sm" onClick={() => setShowAgreementModal(false)}>
                 <X size={16} />
               </button>
@@ -969,7 +1567,7 @@ export const StudentsView = () => {
             <form onSubmit={handleSaveAgreement}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
                 <div className="ims-form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: '0.8rem' }}>Agreement Date *</label>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700 }}>Admission Date *</label>
                   <input
                     type="date"
                     className="ims-input"
@@ -989,7 +1587,7 @@ export const StudentsView = () => {
                   />
                 </div>
                 <div className="ims-form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: '0.8rem' }}>Total Invoice Value (₹) *</label>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--ims-primary)' }}>Total Invoice Value (₹) *</label>
                   <input
                     type="number"
                     className="ims-input"
@@ -1003,7 +1601,12 @@ export const StudentsView = () => {
               {/* Instalments Table Section */}
               <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                  <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#1e3a8a' }}>Fee Instalment Schedule</h4>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#1e3a8a' }}>Fee Instalment Schedule</h4>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--ims-text-muted)' }}>
+                      Includes initial Admission Fee and monthly installments divided by course duration.
+                    </span>
+                  </div>
                   <button type="button" className="ims-btn ims-btn-secondary ims-btn-sm" onClick={handleAddInstalment}>
                     <Plus size={14} /> Add Instalment Row
                   </button>
@@ -1011,7 +1614,7 @@ export const StudentsView = () => {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {agreementForm.instalments.map((inst, idx) => (
-                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'center' }}>
+                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'center' }}>
                       <input
                         type="text"
                         className="ims-input"
@@ -1035,7 +1638,7 @@ export const StudentsView = () => {
                       <input
                         type="text"
                         className="ims-input"
-                        placeholder="Paid Date/Status"
+                        placeholder="Paid Date / Ref"
                         value={inst.paid_date}
                         onChange={(e) => handleInstalmentChange(idx, 'paid_date', e.target.value)}
                       />
@@ -1135,6 +1738,14 @@ export const StudentsView = () => {
         <AdmissionAgreementPrintModal
           agreementData={printAgreementData}
           onClose={() => setPrintAgreementData(null)}
+        />
+      )}
+
+      {/* Official Receipt Printable Modal */}
+      {activeReceiptData && (
+        <ReceiptPrintModal
+          receiptData={activeReceiptData}
+          onClose={() => setActiveReceiptData(null)}
         />
       )}
     </div>
