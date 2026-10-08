@@ -3,7 +3,7 @@
  * Plugin Name: Institute Management System
  * Plugin URI:  https://example.com/institute-management-system
  * Description: Complete Institute Management System WordPress Plugin. Features custom database tables via dbDelta, custom user roles, REST API framework under ims/v1, Indian GST invoicing, student admission, attendance, fee receipts, and payroll.
- * Version:     1.1.0
+ * Version:     1.2.0
  * Author:      Pixe
  * Author URI:  https://example.com
  * License:     GPL-2.0+
@@ -16,12 +16,12 @@ if (!defined('ABSPATH')) {
 }
 
 // Plugin Constants
-if (!defined('IMS_VERSION')) define('IMS_VERSION', '1.1.0');
+if (!defined('IMS_VERSION')) define('IMS_VERSION', '1.2.0');
 if (!defined('IMS_PLUGIN_DIR')) define('IMS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 if (!defined('IMS_PLUGIN_URL')) define('IMS_PLUGIN_URL', plugin_dir_url(__FILE__));
 if (!defined('IMS_PLUGIN_FILE')) define('IMS_PLUGIN_FILE', __FILE__);
 if (!defined('IMS_REST_NAMESPACE')) define('IMS_REST_NAMESPACE', 'ims/v1');
-if (!defined('IMS_DB_VERSION')) define('IMS_DB_VERSION', '1.1.0');
+if (!defined('IMS_DB_VERSION')) define('IMS_DB_VERSION', '1.2.0');
 
 // Autoload core files
 require_once IMS_PLUGIN_DIR . 'includes/class-ims-activator.php';
