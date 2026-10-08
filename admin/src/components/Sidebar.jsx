@@ -40,17 +40,30 @@ export const Sidebar = () => {
   return (
     <aside className="ims-sidebar">
       <div className="ims-sidebar-header">
-        <div className="ims-brand-icon" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {settings?.logo_url ? (
+        {settings?.logo_url ? (
+          <div
+            style={{
+              width: '44px',
+              height: '44px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+              flexShrink: 0,
+              background: 'transparent',
+            }}
+          >
             <img
               src={settings.logo_url}
               alt="Logo"
-              style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '8px' }}
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
             />
-          ) : (
+          </div>
+        ) : (
+          <div className="ims-brand-icon">
             <Building2 size={24} />
-          )}
-        </div>
+          </div>
+        )}
         <div>
           <div className="ims-brand-title">
             {settings?.institute_name || 'IMS Portal'}

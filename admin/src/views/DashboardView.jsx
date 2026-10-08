@@ -149,8 +149,8 @@ export const DashboardView = () => {
               width: '64px',
               height: '64px',
               borderRadius: '12px',
-              background: '#eff6ff',
-              border: '1px solid var(--ims-border)',
+              background: settings?.logo_url ? 'transparent' : '#eff6ff',
+              border: settings?.logo_url ? 'none' : '1px solid var(--ims-border)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -162,7 +162,7 @@ export const DashboardView = () => {
               <img
                 src={settings.logo_url}
                 alt={settings?.institute_name || 'Logo'}
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
               />
             ) : (
               <Building2 size={32} style={{ color: 'var(--ims-primary)' }} />
